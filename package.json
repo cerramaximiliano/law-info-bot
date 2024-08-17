@@ -4,7 +4,9 @@
   "description": "Telegram bot that scrapes news from Diario Judicial, saves to MongoDB and sends them to a Telegram chat.",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "nodemon src/index.js",
+    "start:dev": "NODE_ENV=development nodemon app.js",
+    "start:prod": "NODE_ENV=production nodemon app.js"
   },
   "dependencies": {
     "axios": "^0.27.2",
@@ -12,6 +14,8 @@
     "dotenv": "^16.0.3",
     "mongoose": "^6.3.3",
     "node-cron": "^3.0.0",
-    "node-telegram-bot-api": "^0.56.0"
+    "node-telegram-bot-api": "^0.56.0",
+    "nodemon": "^3.1.4",
+    "puppeteer": "^23.1.0"
   }
 }

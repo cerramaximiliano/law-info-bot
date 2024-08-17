@@ -20,3 +20,8 @@ cron.schedule('0 * * * *', async () => {
   await enviarNoticias();
   console.log('Tarea completada');
 });
+
+(async () => {
+  const savedNews = await scrapeNoticias();
+  console.log(savedNews)
+})()
