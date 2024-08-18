@@ -10,6 +10,7 @@ const connectDB = require("./config/db");
 const scrapeNoticias = require("./services/scraper");
 const { bot } = require("./services/bot");
 const { notifyUnnotifiedNews } = require("./controllers/telegramBotControllers");
+const logger = require("./config/logger");
 
 // Conectar a MongoDB
 connectDB();
