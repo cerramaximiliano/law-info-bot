@@ -7,7 +7,7 @@ module.exports = {
         watch: false,
         ignore_watch: ["node_modules", "server/logs", ".env", ".env.production", ".env.development", ".git"], // Excluye la carpeta de logs y node_modules
         env: {
-          PORT: 8085,
+          PORT: 8080,
           NODE_ENV: "production"
         },
       }
