@@ -7,17 +7,34 @@ dotenv.config({ path: envFile });
 
 const cron = require("node-cron");
 const connectDB = require("./config/db");
-const scrapeNoticias = require("./services/scraper");
+const { scrapeNoticias, scrapeInfojus } = require("./services/scraper");
 const { bot } = require("./services/bot");
-const { notifyUnnotifiedNews } = require("./controllers/telegramBotControllers");
+const {
+  notifyUnnotifiedNews,
+} = require("./controllers/telegramBotControllers");
 const logger = require("./config/logger");
 
 // Conectar a MongoDB
 connectDB();
 
 // Configurar node-cron para ejecutar cada hora
+cron.schedule("30 9 * * *", async () => {
+  try {
+    logger.info("Tarea de envío de mensajes de bot iniciada");
+    const unnotified = await notifyUnnotifiedNews(); // Llama a la función para notificar noticias no notificadas
+    console.log("Tarea de envío de mensajes de bot finalizada");
+  } catch (err) {
+    logger.error("Error en tarea de envío de mensajes");
+  }
+});
+
 cron.schedule("*/15 * * * *", async () => {
-  const savedNews = await scrapeNoticias();  // Llama a la función para hacer scraping de noticias
-  const unnotified = await notifyUnnotifiedNews();  // Llama a la función para notificar noticias no notificadas
-  console.log("Tarea completada");
+  try {
+    logger.info("Tarea de web scraping iniciada");
+    const infoJusNews = await scrapeInfojus();
+    const savedNews = await scrapeNoticias();
+    logger.info("Tarea de web scraping finalizada");
+  } catch (err) {
+    logger.error("Error en tarea de web scraping");
+  }
 });

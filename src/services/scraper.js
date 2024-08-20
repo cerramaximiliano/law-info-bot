@@ -71,6 +71,65 @@ const scrapeNoticias =  async () => {
     return savedNews
 };
 
+const scrapeInfojus = async () => {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
 
+    // Navega al sitio web
+    await page.goto('http://www.infojusnoticias.gov.ar/', { waitUntil: 'load', timeout: 0 });
 
-module.exports = scrapeNoticias;
+    // Extraer los artículos de la página
+    const articles = await page.evaluate(() => {
+        // Selecciona todos los elementos <article> con la clase "principal"
+        const elements = document.querySelectorAll('article');
+        const results = [];
+
+        elements.forEach(element => {
+            const hrefElement = element.querySelector('h3 a');
+            const textElement = element.querySelector('p.bajada-home');
+            
+            if (hrefElement && textElement) {
+                const href = hrefElement.getAttribute('href');
+                const title = hrefElement.innerText.trim();
+                const text = textElement.innerText.trim();
+                const idMatch = href.match(/-(\d+)\.html$/);
+                const id = idMatch ? parseInt(idMatch[1], 10) : null;
+
+                if (id) {
+                    results.push({
+                        href: `http://www.infojusnoticias.gov.ar${href}`,
+                        title,
+                        text,
+                        id,
+                        siteId: 'infojus'
+                    });
+                }
+            }
+        });
+
+        return results;
+    });
+
+    // Itera sobre los artículos y guárdalos en la base de datos
+    for (const article of articles) {
+        try {
+            // Verifica si el artículo ya existe
+            const exists = await News.findOne({ id: article.id });
+            if (!exists) {
+                // Si no existe, lo guarda en la base de datos
+                const newsItem = new News(article);
+                await newsItem.save();
+                console.log(`Artículo guardado: ${article.title}`);
+            } else {
+                console.log(`Artículo ya existe: ${article.title}`);
+            }
+        } catch (error) {
+            console.error(`Error guardando artículo: ${article.title}`, error);
+        }
+    }
+
+    // Cierra el navegador
+    await browser.close();
+}
+
+module.exports = {scrapeNoticias, scrapeInfojus};
