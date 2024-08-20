@@ -7,7 +7,7 @@ dotenv.config({ path: envFile });
 
 const cron = require("node-cron");
 const connectDB = require("./config/db");
-const { scrapeNoticias, scrapeInfojus } = require("./services/scraper");
+const { scrapeNoticias, scrapeInfojus, scrapeElDial } = require("./services/scraper");
 const { bot } = require("./services/bot");
 const {
   notifyUnnotifiedNews,
@@ -38,3 +38,10 @@ cron.schedule("*/15 * * * *", async () => {
     logger.error("Error en tarea de web scraping");
   }
 });
+
+
+(async () => {
+
+  await scrapeElDial()
+  
+})()
