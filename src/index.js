@@ -26,6 +26,7 @@ cron.schedule("00 9-17 * * 1-5", async () => {
   try {
     logger.info("Tarea de envío de mensajes de bot iniciada");
     const unnotified = await notifyUnnotifiedNews(); // Llama a la función para notificar noticias no notificadas
+    const unnotifiedActs = await notifyUnnotifiedNews("acts", 10, 2);
     logger.info("Tarea de envío de mensajes de bot finalizada");
   } catch (err) {
     logger.error(`Error en tarea de envío de mensajes: ${err}`);
@@ -44,15 +45,19 @@ cron.schedule("*/15 * * * *", async () => {
   }
 });
 
-cron.schedule('0 8 * * 1-5', async () => {
-  try{
-    logger.info("Tarea de web scraping de normas")
-    await scrapeSaij()
-    logger.info("Tarea de web scraping de normas finalizada")
-  }catch(err){
-    logger.err("Error en la tarea de web scarping Saij", err)
+cron.schedule(
+  "0 8 * * 1-5",
+  async () => {
+    try {
+      logger.info("Tarea de web scraping de normas");
+      await scrapeSaij();
+      logger.info("Tarea de web scraping de normas finalizada");
+    } catch (err) {
+      logger.err("Error en la tarea de web scarping Saij", err);
+    }
+  },
+  {
+    scheduled: true,
+    timezone: "America/Argentina/Buenos_Aires",
   }
-}, {
-  scheduled: true,
-  timezone: "America/Argentina/Buenos_Aires"
-});
+);
