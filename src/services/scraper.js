@@ -270,6 +270,8 @@ const scrapeHammurabi = async () => {
 
 };
 
+
+
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,

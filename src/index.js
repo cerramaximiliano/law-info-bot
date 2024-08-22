@@ -35,7 +35,6 @@ cron.schedule("00 9-17 * * 1-5", async () => {
 cron.schedule("*/15 * * * *", async () => {
   try {
     logger.info("Tarea de web scraping iniciada");
-    const infoJusNews = await scrapeInfojus();
     const savedNews = await scrapeNoticias();
     const elDialNews = await scrapeElDial();
     const hammurabiNews = await scrapeHammurabi();
