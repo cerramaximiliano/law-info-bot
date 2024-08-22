@@ -4,6 +4,8 @@ const Acts = require("../models/acts");
 const { saveNewNews } = require("../controllers/notiicasControllers");
 const hashStringToNumber = require("../utils/formatId");
 const logger = require("../config/logger");
+const Courses = require("../models/courses");
+const { parseDate } = require("../utils/formatDate");
 
 const scrapeNoticias = async () => {
   const browser = await puppeteer.launch({ headless: true });
@@ -347,10 +349,74 @@ const scrapeSaij = async () => {
   }
 };
 
+const scrapeGPCourses = async () => {
+  try {
+    const browser = await puppeteer.launch({ headless: true });
+    const page = await browser.newPage();
+
+    // Navegar a la página de cursos
+    await page.goto(
+      "https://www.grupoprofessional.com.ar/cursos/cursos-streaming",
+      {
+        waitUntil: "networkidle2",
+      }
+    );
+
+    // Extraer la información de los cursos
+    const cursos = await page.evaluate(() => {
+      const cursosElements = document.querySelectorAll(".card-block");
+      const cursosData = [];
+
+      cursosElements.forEach((cursoElement) => {
+        const title = cursoElement
+          .querySelector(".card-title")
+          ?.textContent.trim();
+        const date = cursoElement
+          .querySelector(".card-text")
+          ?.textContent.trim();
+        const link = cursoElement.querySelector("a")?.href;
+
+        if (title && date && link) {
+          cursosData.push({
+            title,
+            date,
+            link,
+          });
+        }
+      });
+
+      return cursosData;
+    });
+
+    console.log(cursos);
+
+    for (let curso of cursos) {
+      const parsedDate = parseDate(curso.date);
+  
+      if (parsedDate) {
+        const nuevoCurso = new Courses({
+          title: curso.title,
+          date: parsedDate,
+          link: curso.link
+        });
+        //await nuevoCurso.save();
+        console.log(`Curso guardado: ${curso.title}`);
+      } else {
+        console.log(`Fecha inválida para el curso: ${curso.title}. No se guardará.`);
+      }
+    }
+
+    await browser.close();
+  } catch (error) {
+    console.error("Error durante el scraping:", error);
+  }
+};
+
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,
   scrapeElDial,
   scrapeHammurabi,
   scrapeSaij,
+  scrapeGPCourses,
 };

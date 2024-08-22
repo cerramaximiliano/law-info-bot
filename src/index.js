@@ -12,6 +12,7 @@ const {
   scrapeSaij,
   scrapeElDial,
   scrapeHammurabi,
+  scrapeGPCourses,
 } = require("./services/scraper");
 const { bot } = require("./services/bot");
 const {
@@ -61,3 +62,7 @@ cron.schedule(
     timezone: "America/Argentina/Buenos_Aires",
   }
 );
+
+(async () => {
+  await scrapeGPCourses();
+})();
