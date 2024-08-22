@@ -1,7 +1,9 @@
 const puppeteer = require("puppeteer");
 const News = require("../models/news");
+const Acts = require("../models/acts");
 const { saveNewNews } = require("../controllers/notiicasControllers");
 const hashStringToNumber = require("../utils/formatId");
+const logger = require("../config/logger");
 
 const scrapeNoticias = async () => {
   const browser = await puppeteer.launch({ headless: true });
@@ -210,71 +212,145 @@ const scrapeElDial = async () => {
 };
 
 const scrapeHammurabi = async () => {
-  
-    const browser = await puppeteer.launch({ headless: true });
-    const page = await browser.newPage();
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
 
-    await page.goto('https://www.hammurabi.com.ar/noticias-juridicas-de-la-semana/', { waitUntil: 'load', timeout: 0 });
+  await page.goto(
+    "https://www.hammurabi.com.ar/noticias-juridicas-de-la-semana/",
+    { waitUntil: "load", timeout: 0 }
+  );
 
-    const articles = await page.evaluate(() => {
-        const elements = document.querySelectorAll('li');
-        const results = [];
+  const articles = await page.evaluate(() => {
+    const elements = document.querySelectorAll("li");
+    const results = [];
 
-        elements.forEach(element => {
-            const hrefElement = element.querySelector('p a');
-            const idElement = element.querySelector('p');
+    elements.forEach((element) => {
+      const hrefElement = element.querySelector("p a");
+      const idElement = element.querySelector("p");
 
-            if (hrefElement && idElement) {
-                const href = hrefElement.getAttribute('href');
-                const title = hrefElement.innerText.trim();
-                const idText = idElement.getAttribute('id');
+      if (hrefElement && idElement) {
+        const href = hrefElement.getAttribute("href");
+        const title = hrefElement.innerText.trim();
+        const idText = idElement.getAttribute("id");
 
-                if (idText && href && title) {
-                    results.push({
-                        href: href.trim(),
-                        title,
-                        text: '', // No hay texto adicional
-                        idText, // Guardamos el texto del id para luego convertirlo en hash
-                        siteId: 'hammurabi'
-                    });
-                }
-            }
-        });
-
-        return results;
+        if (idText && href && title) {
+          results.push({
+            href: href.trim(),
+            title,
+            text: "", // No hay texto adicional
+            idText, // Guardamos el texto del id para luego convertirlo en hash
+            siteId: "hammurabi",
+          });
+        }
+      }
     });
 
-    for (const article of articles) {
-        try {
-            const articleId = hashStringToNumber(article.idText); // Convertimos el id a número usando la función hash
-            const exists = await News.findOne({ id: articleId });
-            if (!exists) {
-                const newsItem = new News({
-                    href: article.href,
-                    title: article.title,
-                    text: article.text,
-                    id: articleId, // Usamos el ID generado
-                    siteId: article.siteId
-                });
-                await newsItem.save();
-                console.log(`Artículo guardado: ${article.title}`);
-            } else {
-                console.log(`Artículo ya existe: ${article.title}`);
-            }
-        } catch (error) {
-            console.error(`Error guardando artículo: ${article.title}`, error);
+    return results;
+  });
+
+  for (const article of articles) {
+    try {
+      const articleId = hashStringToNumber(article.idText); // Convertimos el id a número usando la función hash
+      const exists = await News.findOne({ id: articleId });
+      if (!exists) {
+        const newsItem = new News({
+          href: article.href,
+          title: article.title,
+          text: article.text,
+          id: articleId, // Usamos el ID generado
+          siteId: article.siteId,
+        });
+        await newsItem.save();
+        console.log(`Artículo guardado: ${article.title}`);
+      } else {
+        console.log(`Artículo ya existe: ${article.title}`);
+      }
+    } catch (error) {
+      console.error(`Error guardando artículo: ${article.title}`, error);
+    }
+  }
+
+  await browser.close();
+};
+
+const scrapeSaij = async () => {
+  try {
+    const url = "http://www.saij.gob.ar/boletin-diario/";
+    const browser = await puppeteer.launch({
+      headless: true,
+      timeout: 60000, // Ajusta el tiempo de espera si es necesario
+    });
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 120000 });
+
+    const newsItems = await page.evaluate(() => {
+      const items = [];
+      const idPatternDN = /DN(\d+)/; // Regex para extraer el id del formato DN
+      const urlPattern = /id=(\d+)/; // Regex para extraer el id del parámetro de la URL
+
+      document.querySelectorAll(".detalle").forEach((detalle) => {
+        const href = detalle.querySelector(".titulo-norma a")?.href || "";
+        const titleElement = detalle.querySelector(".titulo-norma a");
+        const title = titleElement
+          ? titleElement.textContent.trim() +
+            " (" +
+            (detalle.querySelector(".subtitulo-norma")?.textContent.trim() ||
+              "") +
+            ")"
+          : "";
+        const text =
+          detalle.querySelector(".sintesis")?.textContent.trim() || "";
+
+        // Intentar extraer el id usando ambos patrones
+        const idMatchDN = href.match(idPatternDN);
+        const idMatchURL = href.match(urlPattern);
+        let id = null;
+
+        if (idMatchDN) {
+          id = parseInt(idMatchDN[1], 10);
+        } else if (idMatchURL) {
+          id = parseInt(idMatchURL[1], 10);
         }
+
+        if (href && title && text && id) {
+          items.push({ href, title, text, id });
+        }
+      });
+      return items;
+    });
+
+    logger.info(`Cantidad de normas extraídas: ${newsItems.length}`);
+
+    for (const item of newsItems) {
+      const existingNews = await Acts.findOne({ id: item.id });
+      if (!existingNews) {
+        const newsItem = new Acts({
+          ...item,
+          siteId: "saij",
+          notifiedByTelegram: false,
+          notificationDate: null,
+        });
+        try {
+          await newsItem.save();
+          logger.info(`Norma guardada: ${newsItem.title}`);
+        } catch (error) {
+          logger.error(`Error al guardar la norma: ${error.message}`);
+        }
+      } else {
+        logger.info(`Norma ya existe: ${item.title}`);
+      }
     }
 
     await browser.close();
-
+  } catch (err) {
+    logger.error("Error web scraping SAIJ", err);
+  }
 };
-
-
 
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,
   scrapeElDial,
   scrapeHammurabi,
+  scrapeSaij,
 };

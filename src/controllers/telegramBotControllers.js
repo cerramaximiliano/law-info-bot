@@ -32,7 +32,6 @@ async function notifyUnnotifiedNews(limit = 5, interval = 10) {
 
 
   } catch (err) {
-    console.log(err)
     logger.error("Error al notificar noticias no notificadas:", err);
   }
 }

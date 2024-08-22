@@ -9,7 +9,7 @@ const cron = require("node-cron");
 const connectDB = require("./config/db");
 const {
   scrapeNoticias,
-  scrapeInfojus,
+  scrapeSaij,
   scrapeElDial,
   scrapeHammurabi,
 } = require("./services/scraper");
@@ -42,4 +42,17 @@ cron.schedule("*/15 * * * *", async () => {
   } catch (err) {
     logger.error("Error en tarea de web scraping");
   }
+});
+
+cron.schedule('0 8 * * 1-5', async () => {
+  try{
+    logger.info("Tarea de web scraping de normas")
+    await scrapeSaij()
+    logger.info("Tarea de web scraping de normas finalizada")
+  }catch(err){
+    logger.err("Error en la tarea de web scarping Saij", err)
+  }
+}, {
+  scheduled: true,
+  timezone: "America/Argentina/Buenos_Aires"
 });
