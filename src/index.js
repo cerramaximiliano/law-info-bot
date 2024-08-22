@@ -22,14 +22,13 @@ const logger = require("./config/logger");
 // Conectar a MongoDB
 connectDB();
 
-// Configurar node-cron para ejecutar cada hora
-cron.schedule("30 9 * * *", async () => {
+cron.schedule("00 9-17 * * 1-5", async () => {
   try {
     logger.info("Tarea de envío de mensajes de bot iniciada");
     const unnotified = await notifyUnnotifiedNews(); // Llama a la función para notificar noticias no notificadas
-    console.log("Tarea de envío de mensajes de bot finalizada");
+    logger.info("Tarea de envío de mensajes de bot finalizada");
   } catch (err) {
-    logger.error("Error en tarea de envío de mensajes");
+    logger.error(`Error en tarea de envío de mensajes: ${err}`);
   }
 });
 
