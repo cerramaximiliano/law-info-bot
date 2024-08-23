@@ -67,6 +67,7 @@ const notifyUpcomingCourses = async () => {
       message += `*Título:* ${course.title}\n`;
       message += `*Fecha:* ${dateFormatted}\n`;
       message += `*Sitio:* ${course.siteId}\n`;
+      message += `*Link:* ${course.link}\n`;
       message +=
         course.price !== "Precio no disponible"
           ? `*Precio:* ${course.price}\n`

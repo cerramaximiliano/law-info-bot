@@ -9,8 +9,10 @@ const {
 } = require("./scraper");
 const {
   notifyUnnotifiedNews,
+  notifyUpcomingCourses,
 } = require("../controllers/telegramBotControllers");
 const logger = require("../config/logger");
+
 
 const startCronJobs = () => {
   cron.schedule(
@@ -93,6 +95,19 @@ const startCronJobs = () => {
       timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
     }
   );
+
+  cron.schedule('0 9 15 * *', async () => {
+    try {
+      logger.info('Tarea de notificación de cursos/diplomados programada para el día 15 de cada mes iniciada');
+      await notifyUpcomingCourses(); // Llama a la función que deseas ejecutar
+      logger.info('Tarea programada de cursos/diplomados para el día 15 de cada mes finalizada');
+    } catch (error) {
+      logger.error(`Error en la tarea de notificación de cursos/diplomados programada para el día 15: ${error}`);
+    }
+  }, {
+    scheduled: true,
+    timezone: "America/Argentina/Buenos_Aires" // Configura la zona horaria de Argentina
+  });
 };
 
 module.exports = { startCronJobs };
