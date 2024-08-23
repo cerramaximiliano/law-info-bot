@@ -7,7 +7,7 @@ const { getUnnotifiedNews, markAsNotified } = require("./notiicasControllers");
 async function notifyUnnotifiedNews(type = "news", limit = 5, interval = 10) {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   let topicId;
-  if (topicId === "news") topicId = process.env.TELEGRAM_TOPIC_ID;
+  if (type === "news") topicId = process.env.TELEGRAM_TOPIC_ID;
   else topicId = process.env.TELEGRAM_TOPIC_ACTS_ID;
   try {
     // Obtiene las noticias que no han sido notificadas
