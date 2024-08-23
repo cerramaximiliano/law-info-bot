@@ -8,7 +8,10 @@ const Courses = require("../models/courses");
 const { parseDate } = require("../utils/formatDate");
 
 const scrapeNoticias = async () => {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
 
   // Navega a la página objetivo
@@ -86,7 +89,10 @@ const scrapeNoticias = async () => {
 };
 
 const scrapeInfojus = async () => {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
 
   // Navega al sitio web
@@ -150,7 +156,10 @@ const scrapeInfojus = async () => {
 };
 
 const scrapeElDial = async () => {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
 
   // Navega al sitio web
@@ -214,7 +223,10 @@ const scrapeElDial = async () => {
 };
 
 const scrapeHammurabi = async () => {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
 
   await page.goto(
@@ -281,7 +293,9 @@ const scrapeSaij = async () => {
     const browser = await puppeteer.launch({
       headless: true,
       timeout: 60000, // Ajusta el tiempo de espera si es necesario
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
+
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: "networkidle2", timeout: 120000 });
 
@@ -351,7 +365,10 @@ const scrapeSaij = async () => {
 
 const scrapeGPCourses = async () => {
   try {
-    const browser = await puppeteer.launch({ headless: true });
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
     const page = await browser.newPage();
 
     // Navegar a la página de cursos
@@ -392,17 +409,19 @@ const scrapeGPCourses = async () => {
 
     for (let curso of cursos) {
       const parsedDate = parseDate(curso.date);
-  
+
       if (parsedDate) {
         const nuevoCurso = new Courses({
           title: curso.title,
           date: parsedDate,
-          link: curso.link
+          link: curso.link,
         });
         //await nuevoCurso.save();
         console.log(`Curso guardado: ${curso.title}`);
       } else {
-        console.log(`Fecha inválida para el curso: ${curso.title}. No se guardará.`);
+        console.log(
+          `Fecha inválida para el curso: ${curso.title}. No se guardará.`
+        );
       }
     }
 
