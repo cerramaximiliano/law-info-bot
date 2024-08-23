@@ -11,4 +11,10 @@ function parseDate(dateString) {
   return parsedDate.isValid() ? parsedDate.toDate() : null;
 }
 
-module.exports = { parseDate };
+const parseDateFormat = (dateString) => {
+  const formattedDate = dateString.trim(); // Limpiar cualquier espacio adicional
+  const date = moment(formattedDate, "DD MMMM YYYY", "es"); // Especificar el formato de entrada y el idioma (español)
+  return date.isValid() ? date.toDate() : null; // Convertir a objeto Date o retornar null si la fecha no es válida
+};
+
+module.exports = { parseDate, parseDateFormat };

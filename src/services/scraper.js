@@ -5,7 +5,8 @@ const { saveNewNews } = require("../controllers/notiicasControllers");
 const hashStringToNumber = require("../utils/formatId");
 const logger = require("../config/logger");
 const Courses = require("../models/courses");
-const { parseDate } = require("../utils/formatDate");
+const { parseDate, parseDateFormat } = require("../utils/formatDate");
+
 
 const scrapeNoticias = async () => {
   const browser = await puppeteer.launch({
@@ -405,21 +406,49 @@ const scrapeGPCourses = async () => {
       return cursosData;
     });
 
-    console.log(cursos);
-
     for (let curso of cursos) {
+      await page.goto(curso.link, { waitUntil: "networkidle2" });
+
+      const additionalData = await page.evaluate(() => {
+        const priceElement = document.querySelector(".precio-curso");
+        const typeElement = document
+          .querySelector(".fa-video")
+          ?.parentElement?.textContent.trim();
+
+        const price = priceElement
+          ? priceElement.textContent.replace(/[^0-9]/g, "") + " ARS"
+          : "No disponible";
+        const type = typeElement || "No disponible";
+
+        return { price, type };
+      });
+
       const parsedDate = parseDate(curso.date);
 
       if (parsedDate) {
-        const nuevoCurso = new Courses({
+        // Verificar si ya existe un curso con el mismo título y fecha
+        const existingCourse = await Courses.findOne({
           title: curso.title,
           date: parsedDate,
-          link: curso.link,
         });
-        //await nuevoCurso.save();
-        console.log(`Curso guardado: ${curso.title}`);
+
+        if (!existingCourse) {
+          // Si no existe, crear un nuevo registro
+          const nuevoCurso = new Courses({
+            title: curso.title,
+            date: parsedDate,
+            link: curso.link,
+            price: additionalData.price,
+            type: additionalData.type,
+            siteId: "Grupo Profesional",
+          });
+          await nuevoCurso.save();
+          logger.info(`Curso guardado: ${curso.title}`);
+        } else {
+          logger.info(`Curso ya existe: ${curso.title}. No se guardará.`);
+        }
       } else {
-        console.log(
+        logger.info(
           `Fecha inválida para el curso: ${curso.title}. No se guardará.`
         );
       }
@@ -427,9 +456,116 @@ const scrapeGPCourses = async () => {
 
     await browser.close();
   } catch (error) {
-    console.error("Error durante el scraping:", error);
+    logger.error("Error durante el scraping:", error);
   }
 };
+
+const scrapeDiplomados = async () => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const page = await browser.newPage();
+
+    // Navegar a la página de diplomados de derecho
+    await page.goto("https://www.grupoprofessional.com.ar/diplomados-derecho/", {
+      waitUntil: "networkidle2",
+    });
+
+    // Extraer la información de los diplomados
+    const diplomados = await page.evaluate(() => {
+      const diplomadosElements = document.querySelectorAll(
+        ".col-md-4.card-diplomado-individual"
+      );
+      const diplomadosData = [];
+
+      diplomadosElements.forEach((diplomadoElement) => {
+        const titleElement = diplomadoElement.querySelector(".card-title a");
+        const linkElement = diplomadoElement.querySelector(".card-title a");
+
+        const title = titleElement?.textContent.trim();
+        const link = linkElement?.href;
+
+        if (title && link) {
+          diplomadosData.push({
+            title,
+            link,
+          });
+        }
+      });
+
+      return diplomadosData;
+    });
+
+    // Iterar sobre cada diplomado para extraer datos adicionales y guardar en la base de datos
+    for (let diplomado of diplomados) {
+      await page.goto(diplomado.link, { waitUntil: "networkidle2" });
+
+      const additionalData = await page.evaluate(() => {
+        const formatPrice = (priceString) => {
+          const numericPrice = priceString.replace(/[^0-9,]/g, "").replace(",", ".");
+          return `${numericPrice} ARS`;
+        };
+
+        const dateElement = document.querySelector(".fa-calendar-alt")
+          ?.parentElement?.textContent.trim();
+        const typeElement = document.querySelector(".fa-video")
+          ?.parentElement?.textContent.trim();
+        
+        // Extraer el precio del curso si existe
+        
+        const priceElement = document.querySelector(".datos-precio h3");
+        const priceText = priceElement ? priceElement.childNodes[0].textContent.trim() : null;
+
+        // Extraer solo la parte relevante de las cadenas de texto
+        const date = dateElement
+          ? dateElement.replace("Fecha de inicio:", "").trim()
+          : null;
+        const type = typeElement
+          ? typeElement.replace("Modalidad  de cursada:", "").trim()
+          : "Modalidad no disponible";
+        const price = priceText ? formatPrice(priceText) : "Precio no disponible";
+
+        return { date, type, price };
+      });
+
+      // Parsear la fecha a formato Date usando moment.js
+      diplomado.date = additionalData.date ? parseDateFormat(additionalData.date) : null;
+      diplomado.type = additionalData.type;
+      diplomado.price = additionalData.price;
+
+      // Verificar si ya existe un curso con el mismo título y fecha
+      const existingCourse = await Courses.findOne({
+        title: diplomado.title,
+        date: diplomado.date,
+      });
+
+      if (!existingCourse) {
+        // Si no existe, crear un nuevo registro
+        const nuevoCurso = new Courses({
+          title: diplomado.title,
+          date: diplomado.date,
+          link: diplomado.link,
+          price: diplomado.price,
+          type: diplomado.type,
+          siteId: "Grupo Profesional",
+        });
+        await nuevoCurso.save();
+        logger.info(`Curso guardado: ${diplomado.title}`);
+      } else {
+        logger.info(`Curso ya existe: ${diplomado.title}. No se guardará.`);
+      }
+    }
+
+    await browser.close();
+  } catch (error) {
+    console.log(error)
+    logger.error("Error durante el scraping:", error);
+  }
+};
+
+
 
 module.exports = {
   scrapeNoticias,
@@ -438,4 +574,5 @@ module.exports = {
   scrapeHammurabi,
   scrapeSaij,
   scrapeGPCourses,
+  scrapeDiplomados,
 };
