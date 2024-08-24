@@ -6,8 +6,247 @@ const hashStringToNumber = require("../utils/formatId");
 const logger = require("../config/logger");
 const Courses = require("../models/courses");
 const { parseDate, parseDateFormat } = require("../utils/formatDate");
-const moment = require("moment"); // Para formatear las fechas si es necesario
+const moment = require("moment");
 require("moment/locale/es");
+const axios = require("axios");
+const Tracking = require("../models/tracking");
+const poll = require("promise-poller").default;
+const fs = require("fs");
+const path = require("path");
+const {
+  saveOrUpdateTrackingData,
+} = require("../controllers/trackingControllers");
+
+const timeout = (millis) =>
+  new Promise((resolve) => setTimeout(resolve, millis));
+
+const siteDetails = {
+  sitekey: process.env.RECAPTCHA_SCRAPE_PAGE_SITE_KEY,
+  pageurl: process.env.RECAPTCHA_SCRAPE_PAGE,
+};
+
+const apiKey = process.env.RECAPTCHA_API_KEY;
+
+async function initiateCaptchaRequest(apiKey) {
+  const formData = {
+    method: "userrecaptcha",
+    googlekey: siteDetails.sitekey,
+    key: apiKey,
+    pageurl: siteDetails.pageurl,
+    json: 1,
+  };
+  try {
+    const response = await axios.get("http://2captcha.com/in.php", {
+      params: formData,
+    });
+
+    return response.data.request;
+  } catch (err) {
+    logger.error(`Error initiating CAPTCHA request: ${err.message}`);
+    throw err;
+  }
+}
+
+async function pollForRequestResults(
+  key,
+  id,
+  retries = 30,
+  interval = 4000,
+  delay = 45000
+) {
+  await timeout(delay);
+  return poll({
+    taskFn: requestCaptchaResults(key, id),
+    interval,
+    retries,
+  });
+}
+
+function requestCaptchaResults(apiKey, requestId) {
+  const url = `http://2captcha.com/res.php?key=${apiKey}&action=get&id=${requestId}&json=1`;
+  return async function () {
+    return new Promise(async function (resolve, reject) {
+      const rawResponse = await axios(url);
+      const resp = rawResponse.data;
+      if (resp.status === 0) return reject(resp.request);
+      resolve(resp.request);
+    });
+  };
+}
+
+const scrapeCA = async (
+  cdNumber = "164278815",
+  userId = "66c78ff7e79922bf212a7e43",
+  notificationId = "3564832"
+) => {
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
+      defaultViewport: null,
+    });
+    const page = await browser.newPage();
+
+    // Navegar a la página objetivo
+    logger.info("Navegando a la página");
+    await page.goto("https://www.correoargentino.com.ar/formularios/ondnc", {
+      waitUntil: "domcontentloaded",
+    });
+
+    // Resolver CAPTCHA
+    const captchaResponse = await resolveCaptcha(page);
+    if (!captchaResponse) throw new Error("Error al resolver CAPTCHA.");
+
+    // Completar formulario
+    await completeForm(page, cdNumber, captchaResponse);
+
+    // Enviar formulario
+    await submitForm(page);
+
+    // Esperar a que los resultados se carguen
+    await page.waitForSelector("#resultado", { visible: true });
+
+    // Tomar captura de pantalla y extraer datos
+    const screenshotPath = await captureScreenshot(page, cdNumber);
+    const tableData = await extractTableData(page);
+
+    // Guardar datos en la base de datos
+    await saveOrUpdateTrackingData(
+      cdNumber,
+      userId,
+      notificationId,
+      tableData,
+      screenshotPath
+    );
+
+    logger.info("Proceso completado.");
+  } catch (err) {
+    logger.error(`Error en tarea de scraping tracking: ${err}`);
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+};
+
+const resolveCaptcha = async (page) => {
+  logger.info("Iniciando solicitud de CAPTCHA");
+  const requestId = await initiateCaptchaRequest(apiKey);
+  const response = await pollForRequestResults(apiKey, requestId);
+  logger.info(`Captcha response recibido: ${response}`);
+  return response;
+};
+
+const completeForm = async (page, cdNumber, captchaResponse) => {
+  logger.info("Seleccionando opción del dropdown");
+  await page.select('select[name="producto"]', "CD");
+
+  logger.info("Esperando input para número");
+  await page.waitForSelector("input#numero");
+
+  logger.info("Escribiendo número en el input");
+  await page.type("input#numero", cdNumber);
+
+  logger.info("Inyectando respuesta de CAPTCHA en el DOM");
+  await page.evaluate(
+    (captchaResponse) => {
+      document.getElementById("g-recaptcha-response").innerHTML =
+        captchaResponse;
+    },
+    captchaResponse
+  );
+};
+
+const submitForm = async (page) => {
+  // Esperar a que el iframe de reCAPTCHA esté visible
+  logger.info("Esperando iframe de reCAPTCHA");
+  await page.waitForSelector("iframe[src*='recaptcha']", {
+    visible: true,
+    timeout: 60000,
+  });
+
+  // Acceder al iframe de reCAPTCHA
+  const frames = page.frames();
+  const recaptchaFrame = frames.find((frame) =>
+    frame.url().includes("recaptcha")
+  );
+
+  if (recaptchaFrame) {
+    logger.info("Iframe de reCAPTCHA encontrado");
+
+    // Esperar al checkbox dentro del iframe
+    await recaptchaFrame.waitForSelector(".recaptcha-checkbox-border", {
+      visible: true,
+      timeout: 60000,
+    });
+
+    logger.info("Haciendo clic en el checkbox de reCAPTCHA");
+    await recaptchaFrame.click(".recaptcha-checkbox-border");
+  } else {
+    throw new Error("No se pudo encontrar el iframe de reCAPTCHA.");
+  }
+
+  // Hacer clic en el botón de submit
+  logger.info("Haciendo clic en el botón de enviar");
+  await page.click("button#btsubmit");
+};
+
+const captureScreenshot = async (page, cdNumber) => {
+  // Hacer scroll para asegurar que el elemento esté visible en la pantalla
+  await page.evaluate(() => {
+    const resultadoElement = document.getElementById("resultado");
+    if (resultadoElement) {
+      resultadoElement.scrollIntoView();
+    }
+  });
+
+  // Crear la carpeta de capturas de pantalla si no existe
+  const screenshotDir = path.join(__dirname, "screenshots");
+  if (!fs.existsSync(screenshotDir)) {
+    fs.mkdirSync(screenshotDir);
+  }
+
+  // Tomar una captura de pantalla solo del elemento #resultado
+  const resultadoElement = await page.$("#resultado");
+  const screenshotPath = path.join(screenshotDir, `result-${cdNumber}.png`);
+  if (resultadoElement) {
+    await resultadoElement.screenshot({ path: screenshotPath });
+    logger.info(
+      `Captura de pantalla del resultado guardada en: ${screenshotPath}`
+    );
+    return screenshotPath;
+  } else {
+    throw new Error("No se encontró el elemento #resultado.");
+  }
+};
+
+const extractTableData = async (page) => {
+  const tableData = await page.evaluate(() => {
+    const rows = Array.from(
+      document.querySelectorAll("#resultado table tbody tr")
+    );
+    return rows.map((row) => {
+      const columns = row.querySelectorAll("td");
+      return {
+        fecha: columns[0].innerText.trim(),
+        planta: columns[1].innerText.trim(),
+        historia: columns[2].innerText.trim(),
+        estado: columns[3].innerText.trim(),
+      };
+    });
+  });
+  logger.info("Datos extraídos de la tabla:", JSON.stringify(tableData));
+  return tableData;
+};
 
 
 const scrapeNoticias = async () => {
@@ -79,9 +318,6 @@ const scrapeNoticias = async () => {
 
     return filteredLinks;
   });
-
-  // Muestra los elementos agrupados en la consola
-  console.log(elements);
 
   const savedNews = await saveNewNews(elements, "diariojudicial");
 
@@ -665,12 +901,10 @@ const scrapeUBATalleres = async () => {
     }
 
     await browser.close();
-
   } catch (error) {
     logger.error("Error durante el scraping:", error);
   }
 };
-
 
 const scrapeUBAProgramas = async () => {
   try {
@@ -681,9 +915,12 @@ const scrapeUBAProgramas = async () => {
     const page = await browser.newPage();
 
     // Navegar a la página de programas de perfeccionamiento
-    await page.goto("http://www.derecho.uba.ar/graduados/programas-de-perfeccionamiento/", {
-      waitUntil: "networkidle2",
-    });
+    await page.goto(
+      "http://www.derecho.uba.ar/graduados/programas-de-perfeccionamiento/",
+      {
+        waitUntil: "networkidle2",
+      }
+    );
 
     // Función para formatear el precio
     const formatPrice = (priceString) => {
@@ -725,11 +962,17 @@ const scrapeUBAProgramas = async () => {
         let priceOthers = null;
 
         if (contenidoElement) {
-          const priceUBAMatch = contenidoElement.textContent.match(/Precio para graduadas\/os UBA: (Gratis|\$\d{1,3}(?:\.\d{3})*)/);
-          const priceOthersMatch = contenidoElement.textContent.match(/Precio para graduadas\/os de otras universidades: (Gratis|\$\d{1,3}(?:\.\d{3})*)/);
+          const priceUBAMatch = contenidoElement.textContent.match(
+            /Precio para graduadas\/os UBA: (Gratis|\$\d{1,3}(?:\.\d{3})*)/
+          );
+          const priceOthersMatch = contenidoElement.textContent.match(
+            /Precio para graduadas\/os de otras universidades: (Gratis|\$\d{1,3}(?:\.\d{3})*)/
+          );
 
           priceUBA = priceUBAMatch ? priceUBAMatch[1].trim() : "No disponible";
-          priceOthers = priceOthersMatch ? priceOthersMatch[1].trim() : "No disponible";
+          priceOthers = priceOthersMatch
+            ? priceOthersMatch[1].trim()
+            : "No disponible";
         }
 
         if (title && link && type && dateText) {
@@ -755,8 +998,12 @@ const scrapeUBAProgramas = async () => {
         delete programa.dateText; // Eliminar el campo dateText ya que ahora tenemos el campo date
 
         // Formatear los precios
-        programa.priceUBA = programa.priceUBA ? formatPrice(programa.priceUBA) : "No disponible";
-        programa.priceOthers = programa.priceOthers ? formatPrice(programa.priceOthers) : "No disponible";
+        programa.priceUBA = programa.priceUBA
+          ? formatPrice(programa.priceUBA)
+          : "No disponible";
+        programa.priceOthers = programa.priceOthers
+          ? formatPrice(programa.priceOthers)
+          : "No disponible";
 
         // Verificar si ya existe un programa con el mismo título y fecha
         const existingCourse = await Courses.findOne({
@@ -784,7 +1031,6 @@ const scrapeUBAProgramas = async () => {
     }
 
     await browser.close();
-
   } catch (error) {
     logger.error("Error durante el scraping:", error);
   }
@@ -800,4 +1046,5 @@ module.exports = {
   scrapeDiplomados,
   scrapeUBATalleres,
   scrapeUBAProgramas,
+  scrapeCA,
 };
