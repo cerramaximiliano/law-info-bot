@@ -8,6 +8,7 @@ dotenv.config({ path: envFile });
 const connectDB = require("./config/db");
 const { startCronJobs } = require("./services/cronJobs");
 const logger = require("./config/logger");
+const { notifyUpcomingUBACourses } = require("./controllers/telegramBotControllers");
 
 // Conectar a MongoDB
 connectDB();

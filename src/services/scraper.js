@@ -6,6 +6,8 @@ const hashStringToNumber = require("../utils/formatId");
 const logger = require("../config/logger");
 const Courses = require("../models/courses");
 const { parseDate, parseDateFormat } = require("../utils/formatDate");
+const moment = require("moment"); // Para formatear las fechas si es necesario
+require("moment/locale/es");
 
 
 const scrapeNoticias = async () => {
@@ -469,9 +471,12 @@ const scrapeDiplomados = async () => {
     const page = await browser.newPage();
 
     // Navegar a la página de diplomados de derecho
-    await page.goto("https://www.grupoprofessional.com.ar/diplomados-derecho/", {
-      waitUntil: "networkidle2",
-    });
+    await page.goto(
+      "https://www.grupoprofessional.com.ar/diplomados-derecho/",
+      {
+        waitUntil: "networkidle2",
+      }
+    );
 
     // Extraer la información de los diplomados
     const diplomados = await page.evaluate(() => {
@@ -504,19 +509,25 @@ const scrapeDiplomados = async () => {
 
       const additionalData = await page.evaluate(() => {
         const formatPrice = (priceString) => {
-          const numericPrice = priceString.replace(/[^0-9,]/g, "").replace(",", ".");
+          const numericPrice = priceString
+            .replace(/[^0-9,]/g, "")
+            .replace(",", ".");
           return `${numericPrice} ARS`;
         };
 
-        const dateElement = document.querySelector(".fa-calendar-alt")
+        const dateElement = document
+          .querySelector(".fa-calendar-alt")
           ?.parentElement?.textContent.trim();
-        const typeElement = document.querySelector(".fa-video")
+        const typeElement = document
+          .querySelector(".fa-video")
           ?.parentElement?.textContent.trim();
-        
+
         // Extraer el precio del curso si existe
-        
+
         const priceElement = document.querySelector(".datos-precio h3");
-        const priceText = priceElement ? priceElement.childNodes[0].textContent.trim() : null;
+        const priceText = priceElement
+          ? priceElement.childNodes[0].textContent.trim()
+          : null;
 
         // Extraer solo la parte relevante de las cadenas de texto
         const date = dateElement
@@ -525,13 +536,17 @@ const scrapeDiplomados = async () => {
         const type = typeElement
           ? typeElement.replace("Modalidad  de cursada:", "").trim()
           : "Modalidad no disponible";
-        const price = priceText ? formatPrice(priceText) : "Precio no disponible";
+        const price = priceText
+          ? formatPrice(priceText)
+          : "Precio no disponible";
 
         return { date, type, price };
       });
 
       // Parsear la fecha a formato Date usando moment.js
-      diplomado.date = additionalData.date ? parseDateFormat(additionalData.date) : null;
+      diplomado.date = additionalData.date
+        ? parseDateFormat(additionalData.date)
+        : null;
       diplomado.type = additionalData.type;
       diplomado.price = additionalData.price;
 
@@ -560,12 +575,220 @@ const scrapeDiplomados = async () => {
 
     await browser.close();
   } catch (error) {
-    console.log(error)
+    console.log(error);
+    logger.error("Error durante el scraping:", error);
+  }
+};
+
+const scrapeUBATalleres = async () => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const page = await browser.newPage();
+
+    // Navegar a la página de talleres
+    await page.goto("http://www.derecho.uba.ar/graduados/talleres/", {
+      waitUntil: "networkidle2",
+    });
+
+    // Extraer la información de los talleres
+    const talleres = await page.evaluate(() => {
+      const talleresElements = document.querySelectorAll(".modulo");
+      const talleresData = [];
+
+      talleresElements.forEach((tallerElement) => {
+        const titleElement = tallerElement.querySelector("h3 a");
+        const title = titleElement?.textContent.replace(/^\d+\.\s*/, "").trim(); // Eliminar la numeración
+        const link = titleElement?.href;
+        const typeElement = tallerElement.querySelector("span.badge");
+        const type = typeElement?.textContent.trim();
+
+        // Extraer el texto que contiene la fecha
+        const contenidoElement = tallerElement.querySelector(".contenido p");
+        let dateText = null;
+
+        if (contenidoElement) {
+          const regex = /(\d{2} de [a-zA-Z]+(?: de \d{4})?)/;
+          const match = contenidoElement.textContent.match(regex);
+          if (match) {
+            dateText = match[0];
+          }
+        }
+
+        if (title && link && type && dateText) {
+          talleresData.push({
+            title,
+            link,
+            dateText, // Pasamos la fecha como texto para procesarla fuera de evaluate
+            type,
+            siteId: "UBA Derecho",
+          });
+        }
+      });
+
+      return talleresData;
+    });
+
+    // Procesar la fecha usando moment fuera de evaluate y guardar los cursos
+    for (let taller of talleres) {
+      if (taller.dateText) {
+        let dateText = taller.dateText;
+        if (!/\d{4}/.test(dateText)) {
+          dateText += ` de ${new Date().getFullYear()}`;
+        }
+        taller.date = moment(dateText, "DD [de] MMMM [de] YYYY", "es").toDate();
+        delete taller.dateText; // Eliminar el campo dateText ya que ahora tenemos el campo date
+
+        // Verificar si ya existe un curso con el mismo título y fecha
+        const existingCourse = await Courses.findOne({
+          title: taller.title,
+          date: taller.date,
+        });
+
+        if (!existingCourse) {
+          // Si no existe, crear un nuevo registro
+          const nuevoCurso = new Courses({
+            title: taller.title,
+            date: taller.date,
+            link: taller.link,
+            type: taller.type,
+            siteId: taller.siteId,
+          });
+          await nuevoCurso.save();
+          logger.info(`Curso guardado: ${taller.title}`);
+        } else {
+          logger.info(`Curso ya existe: ${taller.title}. No se guardará.`);
+        }
+      }
+    }
+
+    await browser.close();
+
+  } catch (error) {
     logger.error("Error durante el scraping:", error);
   }
 };
 
 
+const scrapeUBAProgramas = async () => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const page = await browser.newPage();
+
+    // Navegar a la página de programas de perfeccionamiento
+    await page.goto("http://www.derecho.uba.ar/graduados/programas-de-perfeccionamiento/", {
+      waitUntil: "networkidle2",
+    });
+
+    // Función para formatear el precio
+    const formatPrice = (priceString) => {
+      if (priceString === "Gratis") return "0 ARS";
+      const numericPrice = priceString.replace(/[^\d,]/g, "").replace(",", ".");
+      return `${parseFloat(numericPrice.replace(".", ""))} ARS`;
+    };
+
+    // Extraer la información de los programas
+    const programas = await page.evaluate(() => {
+      const programasElements = document.querySelectorAll(".modulo");
+      const programasData = [];
+
+      programasElements.forEach((programaElement) => {
+        const titleElement = programaElement.querySelector("h3 a");
+        let title = titleElement?.textContent.replace(/^\d+\.\s*/, "").trim(); // Eliminar la numeración
+
+        // Eliminar el guion y los espacios al inicio si quedan
+        title = title.replace(/^-+\s*/, "").trim();
+
+        const link = titleElement?.href;
+        const typeElement = programaElement.querySelector("span.badge");
+        const type = typeElement?.textContent.trim();
+
+        // Extraer la fecha de inicio
+        const contenidoElement = programaElement.querySelector(".contenido p");
+        let dateText = null;
+
+        if (contenidoElement) {
+          const regex = /(\d{2}-\d{2}-\d{4})/; // Expresión regular para capturar la fecha en formato "dd-mm-yyyy"
+          const match = contenidoElement.textContent.match(regex);
+          if (match) {
+            dateText = match[0];
+          }
+        }
+
+        // Extraer los precios
+        let priceUBA = null;
+        let priceOthers = null;
+
+        if (contenidoElement) {
+          const priceUBAMatch = contenidoElement.textContent.match(/Precio para graduadas\/os UBA: (Gratis|\$\d{1,3}(?:\.\d{3})*)/);
+          const priceOthersMatch = contenidoElement.textContent.match(/Precio para graduadas\/os de otras universidades: (Gratis|\$\d{1,3}(?:\.\d{3})*)/);
+
+          priceUBA = priceUBAMatch ? priceUBAMatch[1].trim() : "No disponible";
+          priceOthers = priceOthersMatch ? priceOthersMatch[1].trim() : "No disponible";
+        }
+
+        if (title && link && type && dateText) {
+          programasData.push({
+            title,
+            link,
+            dateText, // Pasamos la fecha como texto para procesarla fuera de evaluate
+            type,
+            siteId: "UBA Derecho",
+            priceUBA,
+            priceOthers,
+          });
+        }
+      });
+
+      return programasData;
+    });
+
+    // Procesar la fecha y precios usando moment fuera de evaluate y guardar los programas
+    for (let programa of programas) {
+      if (programa.dateText) {
+        programa.date = moment(programa.dateText, "DD-MM-YYYY").toDate();
+        delete programa.dateText; // Eliminar el campo dateText ya que ahora tenemos el campo date
+
+        // Formatear los precios
+        programa.priceUBA = programa.priceUBA ? formatPrice(programa.priceUBA) : "No disponible";
+        programa.priceOthers = programa.priceOthers ? formatPrice(programa.priceOthers) : "No disponible";
+
+        // Verificar si ya existe un programa con el mismo título y fecha
+        const existingCourse = await Courses.findOne({
+          title: programa.title,
+          date: programa.date,
+        });
+
+        if (!existingCourse) {
+          // Si no existe, crear un nuevo registro
+          const nuevoPrograma = new Courses({
+            title: programa.title,
+            date: programa.date,
+            link: programa.link,
+            type: programa.type,
+            siteId: programa.siteId,
+            priceUBA: programa.priceUBA,
+            price: programa.priceOthers,
+          });
+          await nuevoPrograma.save();
+          logger.info(`Programa guardado: ${programa.title}`);
+        } else {
+          logger.info(`Programa ya existe: ${programa.title}. No se guardará.`);
+        }
+      }
+    }
+
+    await browser.close();
+
+  } catch (error) {
+    logger.error("Error durante el scraping:", error);
+  }
+};
 
 module.exports = {
   scrapeNoticias,
@@ -575,4 +798,6 @@ module.exports = {
   scrapeSaij,
   scrapeGPCourses,
   scrapeDiplomados,
+  scrapeUBATalleres,
+  scrapeUBAProgramas,
 };
