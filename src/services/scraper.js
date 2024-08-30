@@ -50,8 +50,8 @@ async function initiateCaptchaRequest(apiKey) {
 async function pollForRequestResults(
   key,
   id,
-  retries = 30,
-  interval = 4000,
+  retries = 40,
+  interval = 5000,
   delay = 45000
 ) {
   await timeout(delay);
@@ -83,7 +83,7 @@ const scrapeCA = async (
   let browser;
   try {
     browser = await puppeteer.launch({
-      headless: true,
+      headless: false,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -114,7 +114,10 @@ const scrapeCA = async (
     await submitForm(page);
 
     // Esperar a que los resultados se carguen
-    await page.waitForSelector("#resultado", { visible: true });
+    await page.waitForSelector("#resultado table tbody tr", {
+      visible: true,
+      timeout: 60000, // Esperar hasta 60 segundos
+    });
 
     // Tomar captura de pantalla y extraer datos
     const screenshotPath = await captureScreenshot(page, cdNumber);
@@ -135,7 +138,7 @@ const scrapeCA = async (
     logger.error(`Error en tarea de scraping tracking: ${err}`);
   } finally {
     if (browser) {
-      await browser.close();
+      //await browser.close();
     }
   }
 };
@@ -159,13 +162,9 @@ const completeForm = async (page, cdNumber, captchaResponse) => {
   await page.type("input#numero", cdNumber);
 
   logger.info("Inyectando respuesta de CAPTCHA en el DOM");
-  await page.evaluate(
-    (captchaResponse) => {
-      document.getElementById("g-recaptcha-response").innerHTML =
-        captchaResponse;
-    },
-    captchaResponse
-  );
+  await page.evaluate((captchaResponse) => {
+    document.getElementById("g-recaptcha-response").innerHTML = captchaResponse;
+  }, captchaResponse);
 };
 
 const submitForm = async (page) => {
@@ -203,12 +202,10 @@ const submitForm = async (page) => {
 };
 
 const captureScreenshot = async (page, cdNumber) => {
-  // Hacer scroll para asegurar que el elemento esté visible en la pantalla
-  await page.evaluate(() => {
-    const resultadoElement = document.getElementById("resultado");
-    if (resultadoElement) {
-      resultadoElement.scrollIntoView();
-    }
+  // Esperar hasta que el resultado esté visible
+  await page.waitForSelector("#resultado", {
+    visible: true,
+    timeout: 60000, // Esperar hasta 60 segundos
   });
 
   // Crear la carpeta de capturas de pantalla si no existe
@@ -217,39 +214,52 @@ const captureScreenshot = async (page, cdNumber) => {
     fs.mkdirSync(screenshotDir);
   }
 
-  // Tomar una captura de pantalla solo del elemento #resultado
-  const resultadoElement = await page.$("#resultado");
+  // Tomar una captura de pantalla del área visible completa
   const screenshotPath = path.join(screenshotDir, `result-${cdNumber}.png`);
-  if (resultadoElement) {
-    await resultadoElement.screenshot({ path: screenshotPath });
-    logger.info(
-      `Captura de pantalla del resultado guardada en: ${screenshotPath}`
-    );
-    return screenshotPath;
-  } else {
-    throw new Error("No se encontró el elemento #resultado.");
-  }
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+
+  logger.info(
+    `Captura de pantalla del resultado guardada en: ${screenshotPath}`
+  );
+  return screenshotPath;
 };
 
 const extractTableData = async (page) => {
-  const tableData = await page.evaluate(() => {
-    const rows = Array.from(
-      document.querySelectorAll("#resultado table tbody tr")
-    );
-    return rows.map((row) => {
-      const columns = row.querySelectorAll("td");
-      return {
-        fecha: columns[0].innerText.trim(),
-        planta: columns[1].innerText.trim(),
-        historia: columns[2].innerText.trim(),
-        estado: columns[3].innerText.trim(),
-      };
-    });
+  // Esperar hasta que las filas de la tabla estén visibles
+  await page.waitForSelector("#resultado table tbody tr", {
+    visible: true,
+    timeout: 60000, // Esperar hasta 60 segundos
   });
+  const pageContent = await page.evaluate(() => document.body.innerHTML);
+  //console.log(pageContent);
+
+  const tableHTML = await page.evaluate(() => {
+    const table = document.querySelector("#resultado table");
+    return table ? table.outerHTML : null;
+  });
+
+  console.log(tableHTML);
+
+  const tableData = await page.evaluate(() => {
+    const rows = Array.from(document.querySelectorAll("#resultado table tbody tr"));
+    const extractedData = [];
+
+    rows.forEach((row) => {
+      const columns = row.querySelectorAll("td");
+      extractedData.push({
+        fecha: columns[0]?.innerText.trim() || '',
+        planta: columns[1]?.innerText.trim() || '',
+        historia: columns[2]?.innerText.trim() || '',
+        estado: columns[3]?.innerText.trim() || '',
+      });
+    });
+
+    return extractedData;
+  });
+  
   logger.info("Datos extraídos de la tabla:", JSON.stringify(tableData));
   return tableData;
 };
-
 
 const scrapeNoticias = async () => {
   const browser = await puppeteer.launch({
