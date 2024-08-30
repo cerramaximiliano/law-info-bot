@@ -8,11 +8,17 @@ dotenv.config({ path: envFile });
 const connectDB = require("./config/db");
 const { startCronJobs } = require("./services/cronJobs");
 const logger = require("./config/logger");
+const { scrapeCA } = require("./services/scraper");
 
 // Conectar a MongoDB
 connectDB();
 
 // Iniciar tareas programadas
-startCronJobs();
+//startCronJobs();
+
+(async () => {
+  await scrapeCA()
+})()
+
 
 logger.info("Aplicación iniciada correctamente");

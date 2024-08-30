@@ -77,7 +77,8 @@ function requestCaptchaResults(apiKey, requestId) {
 const scrapeCA = async (
   cdNumber = "164278815",
   userId = "66c78ff7e79922bf212a7e43",
-  notificationId = "3564832"
+  notificationId = "3564832",
+  trackingType = "telegrama"
 ) => {
   let browser;
   try {
@@ -125,7 +126,8 @@ const scrapeCA = async (
       userId,
       notificationId,
       tableData,
-      screenshotPath
+      screenshotPath,
+      trackingType
     );
 
     logger.info("Proceso completado.");

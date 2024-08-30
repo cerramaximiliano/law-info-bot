@@ -15,6 +15,11 @@ const trackingSchema = new Schema({
     type: String,
     required: true
   },
+  trackingType: {
+    type: String,
+    enum: ['telegrama', 'carta_documento', 'otro'], // Diferentes tipos de seguimiento
+    required: true
+  },
   movements: [
     {
       date: {
@@ -57,14 +62,23 @@ const trackingSchema = new Schema({
   ]
 });
 
+// Método para agregar un movimiento
 trackingSchema.methods.addMovement = function (movement) {
   this.movements.push(movement);
   this.lastUpdated = Date.now();
   return this.save();
 };
 
+// Método para agregar una captura de pantalla
 trackingSchema.methods.addScreenshot = function (screenshotPath) {
   this.screenshots.push({ path: screenshotPath });
+  return this.save();
+};
+
+// Método para marcar un seguimiento como completado
+trackingSchema.methods.completeTracking = function () {
+  this.isCompleted = true;
+  this.lastUpdated = Date.now();
   return this.save();
 };
 

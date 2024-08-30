@@ -6,7 +6,8 @@ const saveOrUpdateTrackingData = async (
   userId,
   notificationId,
   tableData,
-  screenshotPath
+  screenshotPath,
+  trackingType
 ) => {
   try {
     // Busca un registro existente basado en el trackingCode
@@ -54,6 +55,7 @@ const saveOrUpdateTrackingData = async (
         userId,
         notificationId,
         trackingCode,
+        trackingType,
         movements: tableData.map((movement) => ({
           date: new Date(movement.fecha),
           planta: movement.planta,
