@@ -14,7 +14,7 @@ const {
   notifyUpcomingCourses,
   notifyUpcomingUBACourses,
 } = require("../controllers/telegramBotControllers");
-const {logger, clearLogs} = require("../config/logger");
+const { logger, clearLogs } = require("../config/logger");
 
 const startCronJobs = () => {
   cron.schedule(
@@ -145,6 +145,11 @@ const startCronJobs = () => {
       timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
     }
   );
+
+  cron.schedule("0 0 */7 * *", () => {
+    logger.log("Se ejecuta limpieza de logs");
+    clearLogs();
+  });
 };
 
 module.exports = { startCronJobs };
