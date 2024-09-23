@@ -7,7 +7,7 @@ dotenv.config({ path: envFile });
 
 const connectDB = require("./config/db");
 const { startCronJobs } = require("./services/cronJobs");
-const logger = require("./config/logger");
+const {logger} = require("./config/logger");
 
 // Conectar a MongoDB
 connectDB();

@@ -1,4 +1,4 @@
-const logger = require("../config/logger");
+const {logger} = require("../config/logger");
 const Acts = require("../models/acts");
 const News = require("../models/news");
 

@@ -14,7 +14,7 @@ const {
   notifyUpcomingCourses,
   notifyUpcomingUBACourses,
 } = require("../controllers/telegramBotControllers");
-const logger = require("../config/logger");
+const {logger, clearLogs} = require("../config/logger");
 
 const startCronJobs = () => {
   cron.schedule(

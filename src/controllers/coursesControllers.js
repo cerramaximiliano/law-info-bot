@@ -1,4 +1,4 @@
-const logger = require("../config/logger");
+const {logger} = require("../config/logger");
 const Courses = require("../models/courses"); // Importa el modelo de Courses
 const moment = require("moment"); // Importa moment.js para manejar fechas
 

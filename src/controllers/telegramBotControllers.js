@@ -1,4 +1,4 @@
-const logger = require("../config/logger");
+const {logger} = require("../config/logger");
 const Courses = require("../models/courses");
 const { bot } = require("../services/bot");
 const { truncateText } = require("../utils/formatText");
