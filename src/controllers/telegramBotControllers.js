@@ -8,7 +8,7 @@ const moment = require("moment");
 require('moment/locale/es');
 
 // Función para manejar la notificación de noticias no notificadas
-async function notifyUnnotifiedNews(type = "news", limit = 5, interval = 10) {
+async function notifyUnnotifiedNews(type = "news", limit = 5, interval = 30) {
   const chatId = process.env.TELEGRAM_CHAT_ID;
   let topicId;
   if (type === "news") topicId = process.env.TELEGRAM_TOPIC_ID;
