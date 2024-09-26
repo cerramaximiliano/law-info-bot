@@ -18,7 +18,7 @@ const { logger, clearLogs } = require("../config/logger");
 
 const startCronJobs = () => {
   cron.schedule(
-    "5 10 * * 1-5",
+    "30 10 * * 1-5",
     async () => {
       try {
         logger.info("Tarea de envío de mensajes de bot iniciada");

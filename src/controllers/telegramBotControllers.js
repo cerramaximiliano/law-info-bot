@@ -1,11 +1,11 @@
-const {logger} = require("../config/logger");
+const { logger } = require("../config/logger");
 const Courses = require("../models/courses");
 const { bot } = require("../services/bot");
 const { truncateText } = require("../utils/formatText");
 const { getUpcomingCoursesNotNotified } = require("./coursesControllers");
 const { getUnnotifiedNews, markAsNotified } = require("./notiicasControllers");
 const moment = require("moment");
-require('moment/locale/es');
+require("moment/locale/es");
 
 // Función para manejar la notificación de noticias no notificadas
 async function notifyUnnotifiedNews(type = "news", limit = 5, interval = 30) {
@@ -29,8 +29,12 @@ async function notifyUnnotifiedNews(type = "news", limit = 5, interval = 30) {
       });
       logger.info("Noticia/Norma notificada por telegram");
       // Marca la noticia como notificada en la base de datos
-      await markAsNotified(newsItem._id, type);
-      logger.info("Noticia/Norma marcada como notificada");
+      if (process.env.NODE_ENV === "production") {
+        await markAsNotified(newsItem._id, type);
+        logger.info("Noticia/Norma marcada como notificada");
+      }
+
+
       // Si no es la última noticia, espera 5 minutos antes de enviar la siguiente
       if (i < limitedNews.length - 1) {
         await new Promise((resolve) =>
@@ -60,7 +64,7 @@ const notifyUpcomingCourses = async () => {
     }
 
     // 2. Armar el mensaje de Telegram
-    const nextMonthName = moment().add(1, 'month').format('MMMM'); 
+    const nextMonthName = moment().add(1, "month").format("MMMM");
     let message = `📅 *Cursos del mes de ${nextMonthName}*\n\n`;
     courses.forEach((course) => {
       const dateFormatted = moment(course.date).format("DD MMMM YYYY");
@@ -83,11 +87,13 @@ const notifyUpcomingCourses = async () => {
       message_thread_id: topicId,
     });
 
-    // 4. Actualizar los cursos en la base de datos
+    // 4. Actualizar los cursos en la base de datos - Solo se actualizan si corren en modo producción
     for (let course of courses) {
-      course.notifiedByTelegram = true;
-      course.notificationDate = new Date();
-      await course.save();
+      if (process.env.NODE_ENV === "production") {
+        course.notifiedByTelegram = true;
+        course.notificationDate = new Date();
+        await course.save();
+      }
     }
 
     logger.info("Notificación enviada y cursos actualizados.");
@@ -114,7 +120,7 @@ const notifyUpcomingUBACourses = async () => {
     }
 
     // 2. Armar el mensaje de Telegram
-    const nextMonthName = moment().add(1, 'month').format('MMMM');
+    const nextMonthName = moment().add(1, "month").format("MMMM");
     let message = `📅 *Cursos del mes de ${nextMonthName} en UBA Derecho*\n\n`;
     courses.forEach((course) => {
       const dateFormatted = moment(course.date).format("DD MMMM YYYY");
@@ -122,7 +128,7 @@ const notifyUpcomingUBACourses = async () => {
       message += `*Fecha:* ${dateFormatted}\n`;
       message += `*Sitio:* ${course.siteId}\n`;
       message += `*Link:* ${course.link}\n`;
-      
+
       // Validar si el precio está definido y no es "No disponible"
       if (course.price && course.price !== "No disponible") {
         message += `*Precio:* ${course.price}\n`;
@@ -141,15 +147,25 @@ const notifyUpcomingUBACourses = async () => {
 
     // 4. Actualizar los cursos en la base de datos
     for (let course of courses) {
-      course.notifiedByTelegram = true;
-      course.notificationDate = new Date();
-      await course.save();
+      if (process.env.NODE_ENV === "production") {
+        course.notifiedByTelegram = true;
+        course.notificationDate = new Date();
+        await course.save();
+      }
     }
 
-    logger.info("Notificación de cursos de UBA Derecho enviada y cursos actualizados.");
+
+
+    logger.info(
+      "Notificación de cursos de UBA Derecho enviada y cursos actualizados."
+    );
   } catch (error) {
     logger.error("Error al notificar los cursos de UBA Derecho:", error);
   }
 };
 
-module.exports = { notifyUnnotifiedNews, notifyUpcomingCourses, notifyUpcomingUBACourses };
+module.exports = {
+  notifyUnnotifiedNews,
+  notifyUpcomingCourses,
+  notifyUpcomingUBACourses,
+};
