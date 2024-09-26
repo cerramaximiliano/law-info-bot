@@ -35,11 +35,11 @@ const startCronJobs = () => {
   );
 
   cron.schedule(
-    "00 9-17 * * 1-5",
+    "30 12 * * 1-5",
     async () => {
       try {
         logger.info("Tarea de envío de mensajes de bot iniciada");
-        await notifyUnnotifiedNews("acts", 10, 2);
+        await notifyUnnotifiedNews("acts", 3, 40);
         logger.info("Tarea de envío de mensajes de bot finalizada");
       } catch (err) {
         logger.error(`Error en tarea de envío de mensajes: ${err}`);
