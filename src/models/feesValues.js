@@ -1,15 +1,14 @@
 const mongoose = require("mongoose");
 
-const feesSchema = new mongoose.Schema({
+const feesValues = new mongoose.Schema({
   resolucion: String,
   fecha: Date,
-  monto: String,
+  monto: Number,
   periodo: String,
-  vigenciaFecha: Date,
-  link: String,
+  vigencia: Date,
   organization: String,
+  type: String,
 });
 
-const FeesValues = mongoose.model("FeesValues", umaSchema);
-
-module.exports = FeesValues;
+const FeesModel = mongoose.model("feesValues", feesValues);
+module.exports = FeesModel;

@@ -1,5 +1,5 @@
 const { logger } = require("../config/logger");
-const FeesModel = require("../models/freesValues");
+const FeesModel = require("../models/feesValues");
 const moment = require("moment");
 
 async function saveFeesValuesAfterLastVigencia(data) {
