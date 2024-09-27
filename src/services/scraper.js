@@ -1,10 +1,11 @@
 const puppeteer = require("puppeteer");
 const News = require("../models/news");
 const Acts = require("../models/acts");
+const FeesModel = require("../models/freesValues");
+const Courses = require("../models/courses");
 const { saveNewNews } = require("../controllers/notiicasControllers");
 const hashStringToNumber = require("../utils/formatId");
-const {logger} = require("../config/logger");
-const Courses = require("../models/courses");
+const { logger } = require("../config/logger");
 const { parseDate, parseDateFormat } = require("../utils/formatDate");
 const moment = require("moment");
 require("moment/locale/es");
@@ -16,6 +17,9 @@ const path = require("path");
 const {
   saveOrUpdateTrackingData,
 } = require("../controllers/trackingControllers");
+const {
+  saveFeesValuesAfterLastVigencia,
+} = require("../controllers/feesControllers");
 
 const timeout = (millis) =>
   new Promise((resolve) => setTimeout(resolve, millis));
@@ -157,13 +161,9 @@ const completeForm = async (page, cdNumber, captchaResponse) => {
   await page.type("input#numero", cdNumber);
 
   logger.info("Inyectando respuesta de CAPTCHA en el DOM");
-  await page.evaluate(
-    (captchaResponse) => {
-      document.getElementById("g-recaptcha-response").innerHTML =
-        captchaResponse;
-    },
-    captchaResponse
-  );
+  await page.evaluate((captchaResponse) => {
+    document.getElementById("g-recaptcha-response").innerHTML = captchaResponse;
+  }, captchaResponse);
 };
 
 const submitForm = async (page) => {
@@ -247,7 +247,6 @@ const extractTableData = async (page) => {
   logger.info("Datos extraídos de la tabla:", JSON.stringify(tableData));
   return tableData;
 };
-
 
 const scrapeNoticias = async () => {
   const browser = await puppeteer.launch({
@@ -1036,6 +1035,80 @@ const scrapeUBAProgramas = async () => {
   }
 };
 
+const scrapeFeesData = async () => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
+    });
+    const page = await browser.newPage();
+
+    // Navegar a la página de programas de perfeccionamiento
+    await page.goto(process.env.FEES_PAGE, {
+      timeout: 90000, // 60 segundo
+      waitUntil: "networkidle2",
+    });
+
+    const rows = await page.evaluate(() => {
+      const tableRows = document.querySelectorAll("table tbody tr");
+      const data = [];
+
+      tableRows.forEach((row) => {
+        const columns = row.querySelectorAll("td");
+        if (columns.length === 5) {
+          const fechaRaw = columns[1].innerText.trim();
+          const vigenciaRaw = columns[4].innerText.trim();
+          const montoRaw = columns[2].innerText.trim();
+
+          // Aquí almacenamos las fechas y el monto en strings
+          const resolucion = columns[0].innerText.trim();
+          const fecha = fechaRaw; // Será procesada con Moment.js más adelante
+          const monto = montoRaw; // Será procesada para convertirla en un número
+          const periodo = columns[3].innerText.trim();
+          const vigencia = vigenciaRaw; // Será procesada con Moment.js más adelante
+
+          data.push({
+            resolucion,
+            fecha,
+            monto,
+            periodo,
+            vigencia,
+            type: "UMA PJN Ley 27.423",
+            organization: "Poder Judicial de la Nación",
+          });
+        }
+      });
+
+      return data;
+    });
+
+    // Procesamos los datos para convertir fecha y vigencia con moment.js y monto a number
+    const processedData = rows.map((row) => {
+      return {
+        ...row,
+        fecha: moment(row.fecha, "DD/MM/YYYY").toDate(), // Conviertes la fecha usando el formato correcto
+        vigencia: moment(row.vigencia, "DD/MM/YYYY").toDate(), // Conviertes la vigencia también
+        monto: parseFloat(
+          row.monto.replace(/[^0-9,.-]+/g, "").replace(",", ".")
+        ), // Limpia y convierte el monto a número
+      };
+    });
+
+    await saveFeesValuesAfterLastVigencia(processedData);
+
+  } catch (err) {
+    logger.error(`Error scraping fees data: ${err}`);
+  }
+};
+
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,
@@ -1046,5 +1119,5 @@ module.exports = {
   scrapeDiplomados,
   scrapeUBATalleres,
   scrapeUBAProgramas,
-  scrapeCA,
+  scrapeFeesData,
 };

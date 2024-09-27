@@ -8,6 +8,7 @@ const {
   scrapeGPCourses,
   scrapeUBATalleres,
   scrapeUBAProgramas,
+  scrapeFeesData,
 } = require("./scraper");
 const {
   notifyUnnotifiedNews,
@@ -69,6 +70,23 @@ const startCronJobs = () => {
       try {
         logger.info("Tarea de web scraping de normas iniciada");
         await scrapeSaij();
+        logger.info("Tarea de web scraping de normas finalizada");
+      } catch (err) {
+        logger.error("Error en la tarea de web scraping Saij:", err);
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "America/Argentina/Buenos_Aires",
+    }
+  );
+
+  cron.schedule(
+    "10 8 * * 1-5",
+    async () => {
+      try {
+        logger.info("Tarea de web scraping de normas iniciada");
+        await scrapeFeesData();
         logger.info("Tarea de web scraping de normas finalizada");
       } catch (err) {
         logger.error("Error en la tarea de web scraping Saij:", err);
