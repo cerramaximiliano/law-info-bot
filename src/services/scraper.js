@@ -1,7 +1,7 @@
 const puppeteer = require("puppeteer");
 const News = require("../models/news");
 const Acts = require("../models/acts");
-const FeesModel = require("../models/freesValues");
+const FeesModel = require("../models/feesValues");
 const Courses = require("../models/courses");
 const { saveNewNews } = require("../controllers/notiicasControllers");
 const hashStringToNumber = require("../utils/formatId");
