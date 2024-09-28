@@ -19,6 +19,7 @@ const {
 } = require("../controllers/trackingControllers");
 const {
   saveFeesValuesAfterLastVigencia,
+  saveFeesValuesAfterLastVigenciaCaba,
 } = require("../controllers/feesControllers");
 
 const siteDetails = {
@@ -887,6 +888,80 @@ const scrapeFeesData = async () => {
   }
 };
 
+const scrapeFeesDataCABA = async () => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
+    });
+    const page = await browser.newPage();
+    // Navegar a la página de programas de perfeccionamiento
+    await page.goto(process.env.FEES_PAGE_2, {
+      timeout: 90000, // 60 segundo
+      waitUntil: "networkidle2",
+    });
+
+    const rows = await page.evaluate(() => {
+      const tableRows = document.querySelectorAll("table tbody tr");
+      const data = [];
+
+      tableRows.forEach((row) => {
+        const columns = row.querySelectorAll("td");
+        if (columns.length === 5) {
+          const fechaRaw = columns[1].innerText.trim();
+          const vigenciaRaw = columns[4].innerText.trim();
+          const montoRaw = columns[2].innerText.trim();
+
+          // Aquí almacenamos las fechas y el monto en strings
+          const resolucion = columns[0].innerText.trim();
+          const fecha = fechaRaw; // Será procesada con Moment.js más adelante
+          const monto = montoRaw; // Será procesada para convertirla en un número
+          const periodo = columns[3].innerText.trim();
+          const vigencia = vigenciaRaw; // Será procesada con Moment.js más adelante
+
+          data.push({
+            resolucion,
+            fecha,
+            monto,
+            periodo,
+            vigencia,
+            type: "UMA PJ CABA Ley 5.134",
+            organization: "Poder Judicial de la Ciudad de Buenos Aires",
+          });
+        }
+      });
+
+      return data;
+    });
+
+    // Procesamos los datos para convertir fecha y vigencia con moment.js y monto a number
+    const processedData = rows.map((row) => {
+      const parsedFecha = moment(row.fecha, "DD/MM/YYYY");
+      const parsedVigencia = moment(row.vigencia, "DD/MM/YYYY");
+      
+      return {
+        ...row,
+        fecha: parsedFecha.isValid() ? parsedFecha.toDate() : null, // Verifica si la fecha es válida, si no, asigna `null`
+        vigencia: parsedVigencia.isValid() ? parsedVigencia.toDate() : null, // Verifica si la vigencia es válida, si no, asigna `null`
+        monto: parseFloat(row.monto.replace(/[^0-9,.-]+/g, "").replace(",", ".")), // Limpia y convierte el monto a número
+      };
+    });
+
+    
+    await saveFeesValuesAfterLastVigenciaCaba(processedData);
+  } catch (err) {
+    logger.error(`Error scraping fees data: ${err}`);
+  }
+};
+
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,
@@ -898,4 +973,5 @@ module.exports = {
   scrapeUBATalleres,
   scrapeUBAProgramas,
   scrapeFeesData,
+  scrapeFeesDataCABA,
 };
