@@ -8,6 +8,10 @@ dotenv.config({ path: envFile });
 const connectDB = require("./config/db");
 const { startCronJobs } = require("./services/cronJobs");
 const { logger } = require("./config/logger");
+const { findUnnotifiedFees } = require("./controllers/feesControllers");
+const FeesModel = require("./models/feesValues");
+const FeesValuesCaba = require("./models/feesValuesCaba");
+const { scrapeFeesData, scrapeFeesDataCABA } = require("./services/scraper");
 
 // Conectar a MongoDB
 connectDB();

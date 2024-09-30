@@ -847,11 +847,12 @@ const scrapeFeesData = async () => {
           const fechaRaw = columns[1].innerText.trim();
           const vigenciaRaw = columns[4].innerText.trim();
           const montoRaw = columns[2].innerText.trim();
-
+          const montoSinPunto = montoRaw.replace('.', '');
+          
           // Aquí almacenamos las fechas y el monto en strings
           const resolucion = columns[0].innerText.trim();
           const fecha = fechaRaw; // Será procesada con Moment.js más adelante
-          const monto = montoRaw; // Será procesada para convertirla en un número
+          const monto = montoSinPunto; // Será procesada para convertirla en un número
           const periodo = columns[3].innerText.trim();
           const vigencia = vigenciaRaw; // Será procesada con Moment.js más adelante
 
@@ -919,11 +920,11 @@ const scrapeFeesDataCABA = async () => {
           const fechaRaw = columns[1].innerText.trim();
           const vigenciaRaw = columns[4].innerText.trim();
           const montoRaw = columns[2].innerText.trim();
-
+          const montoSinPunto = montoRaw.replace('.', '');
           // Aquí almacenamos las fechas y el monto en strings
           const resolucion = columns[0].innerText.trim();
           const fecha = fechaRaw; // Será procesada con Moment.js más adelante
-          const monto = montoRaw; // Será procesada para convertirla en un número
+          const monto = montoSinPunto; // Será procesada para convertirla en un número
           const periodo = columns[3].innerText.trim();
           const vigencia = vigenciaRaw; // Será procesada con Moment.js más adelante
 

@@ -3,6 +3,22 @@ const FeesModel = require("../models/feesValues");
 const FeesValuesCaba = require("../models/feesValuesCaba");
 const moment = require("moment");
 
+function generateTelegramMessage(results) {
+  // Cabecera del mensaje
+  let message = "Actualización valor UMA PJN Ley 27.423\n\n";
+
+  // Iterar sobre cada uno de los resultados y formatear los valores
+  results.forEach((result) => {
+    const formattedVigencia = moment(result.vigencia).format("DD-MM-YYYY"); // Formatear fecha de vigencia
+    const formattedMonto = `$ ${result.monto}`; // Formatear monto con dos decimales
+
+    // Agregar al mensaje cada item
+    message += `- Vigencia: ${formattedVigencia}, Monto: ${formattedMonto}\n`;
+  });
+
+  return message;
+}
+
 async function saveFeesValuesAfterLastVigencia(data) {
   try {
     // Buscar el último registro en la base de datos según la fecha de vigencia
@@ -45,7 +61,9 @@ async function saveFeesValuesAfterLastVigencia(data) {
 async function saveFeesValuesAfterLastVigenciaCaba(data) {
   try {
     // Buscar el último registro en la base de datos según la fecha de vigencia
-    const lastRecord = await FeesValuesCaba.findOne().sort({ vigencia: -1 }).exec();
+    const lastRecord = await FeesValuesCaba.findOne()
+      .sort({ vigencia: -1 })
+      .exec();
     let lastVigencia = lastRecord ? lastRecord.vigencia : null;
 
     // Filtrar los registros que tienen una vigencia posterior al último registro
@@ -81,4 +99,26 @@ async function saveFeesValuesAfterLastVigenciaCaba(data) {
   }
 }
 
-module.exports = { saveFeesValuesAfterLastVigencia, saveFeesValuesAfterLastVigenciaCaba };
+async function findUnnotifiedFees(Model) {
+  const today = moment().startOf("day").toDate(); // Obtiene la fecha de hoy a las 00:00:00
+  try {
+    const results = await Model.find({
+      notifiedByTelegram: false,
+      fecha: { $gte: today },
+    });
+    if (results.length > 0) {
+      const message = generateTelegramMessage(results);
+      return message
+    }
+    return results;
+  } catch (err) {
+    logger.error("Error fetching unnotified fees:", err);
+    throw err;
+  }
+}
+
+module.exports = {
+  saveFeesValuesAfterLastVigencia,
+  saveFeesValuesAfterLastVigenciaCaba,
+  findUnnotifiedFees,
+};
