@@ -16,8 +16,20 @@ const {
   notifyUpcomingUBACourses,
 } = require("../controllers/telegramBotControllers");
 const { logger, clearLogs } = require("../config/logger");
+const { findUnnotifiedFees } = require("../controllers/feesControllers");
+const FeesModel = require("../models/feesValues");
+const FeesValuesCaba = require("../models/feesValuesCaba");
+const { generateTelegramMessage } = require("../utils/formatText");
 
-const startCronJobs = () => {
+const startCronJobs = async () => {
+  const fees = await findUnnotifiedFees(FeesModel);
+  console.log(fees);
+  if (fees.length > 0) {
+    const message = generateTelegramMessage(fees);
+    console.log(message);
+  }
+
+  // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(
     "30 10 * * 1-5",
     async () => {
@@ -35,6 +47,7 @@ const startCronJobs = () => {
     }
   );
 
+  // Cron que envia mensajes Normativa con Telegram bot no notificados
   cron.schedule(
     "30 12 * * 1-5",
     async () => {
@@ -52,6 +65,7 @@ const startCronJobs = () => {
     }
   );
 
+  // Cron que hace scraping en Noticias
   cron.schedule("*/15 * * * *", async () => {
     try {
       logger.info("Tarea de web scraping iniciada");
@@ -64,6 +78,7 @@ const startCronJobs = () => {
     }
   });
 
+  // Cron que hace scraping en Normativa
   cron.schedule(
     "0 8 * * 1-5",
     async () => {
@@ -81,6 +96,7 @@ const startCronJobs = () => {
     }
   );
 
+  // Cron que hace scraping en valores Fees Nación
   cron.schedule(
     "10 8 * * 1-5",
     async () => {
@@ -98,6 +114,7 @@ const startCronJobs = () => {
     }
   );
 
+  // Cron que hace scraping en valores Fees CABA
   cron.schedule(
     "0 19 * * 5",
     async () => {
@@ -164,6 +181,7 @@ const startCronJobs = () => {
     }
   );
 
+  // Cron que limpia el archivo de Logs
   cron.schedule("0 0 */7 * *", () => {
     logger.log("Se ejecuta limpieza de logs");
     clearLogs();

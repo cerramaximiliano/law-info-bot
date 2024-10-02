@@ -4,6 +4,9 @@ const envFile =
     ? ".env.production"
     : ".env.development";
 dotenv.config({ path: envFile });
+const express = require("express");
+const app = express();
+const PORT = process.env.PORT ? process.env.PORT : 3004;
 
 const connectDB = require("./config/db");
 const { startCronJobs } = require("./services/cronJobs");
@@ -13,11 +16,11 @@ const FeesModel = require("./models/feesValues");
 const FeesValuesCaba = require("./models/feesValuesCaba");
 const { scrapeFeesData, scrapeFeesDataCABA } = require("./services/scraper");
 
-// Conectar a MongoDB
-connectDB();
-
 // Iniciar tareas programadas
 startCronJobs();
 
-logger.info("Aplicación iniciada correctamente");
-
+app.listen((PORT) => {
+  logger.info("Aplicación iniciada correctamente");
+  logger.info(`Escuchando puerto ${PORT}`);
+  connectDB();
+});

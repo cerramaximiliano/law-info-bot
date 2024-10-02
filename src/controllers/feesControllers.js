@@ -3,21 +3,7 @@ const FeesModel = require("../models/feesValues");
 const FeesValuesCaba = require("../models/feesValuesCaba");
 const moment = require("moment");
 
-function generateTelegramMessage(results) {
-  // Cabecera del mensaje
-  let message = "Actualización valor UMA PJN Ley 27.423\n\n";
 
-  // Iterar sobre cada uno de los resultados y formatear los valores
-  results.forEach((result) => {
-    const formattedVigencia = moment(result.vigencia).format("DD-MM-YYYY"); // Formatear fecha de vigencia
-    const formattedMonto = `$ ${result.monto}`; // Formatear monto con dos decimales
-
-    // Agregar al mensaje cada item
-    message += `- Vigencia: ${formattedVigencia}, Monto: ${formattedMonto}\n`;
-  });
-
-  return message;
-}
 
 async function saveFeesValuesAfterLastVigencia(data) {
   try {
@@ -106,10 +92,6 @@ async function findUnnotifiedFees(Model) {
       notifiedByTelegram: false,
       fecha: { $gte: today },
     });
-    if (results.length > 0) {
-      const message = generateTelegramMessage(results);
-      return message
-    }
     return results;
   } catch (err) {
     logger.error("Error fetching unnotified fees:", err);
