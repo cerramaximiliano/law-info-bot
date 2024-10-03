@@ -11,11 +11,6 @@
         box-sizing: border-box;
       }
 
-      html,
-      body {
-        height: 100%;
-      }
-
       body {
         font-family: "Poppins", sans-serif;
         display: flex;
@@ -47,22 +42,18 @@
         color: white;
         padding: 20px;
         border-radius: 12px 12px 0 0;
+        height: 35%;
       }
 
       h1 {
-        font-size: 6rem;
+        font-size: 10rem;
         margin-bottom: 10px;
         font-weight: 700;
       }
 
       .subheader {
-        font-size: 2rem;
+        font-size: 4rem;
         color: #a2b9cf;
-      }
-
-      .subheader.small {
-        font-size: 1.5rem;
-        color: #ced9e4;
       }
 
       .content {
@@ -75,6 +66,9 @@
       .box {
         background-color: #f4f7fc;
         width: 45%;
+        height: calc(
+          45vw
+        ); /* Calcula el alto para ser igual al ancho en términos de viewport width */
         padding: 10px;
         border: 1px solid #dde5ee;
         border-radius: 12px;
@@ -82,22 +76,18 @@
         flex-direction: column;
         justify-content: center;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        transition: box-shadow 0.3s ease;
-      }
-
-      .box:hover {
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        align-self: center;
       }
 
       .price {
-        font-size: 5rem;
+        font-size: 7rem;
         color: #2d3e50;
         margin-bottom: 5px;
         font-weight: bold;
       }
 
       .date {
-        font-size: 1.5rem;
+        font-size: 3.5rem;
         color: #7c8a98;
       }
 
@@ -144,7 +134,6 @@
       <div class="header">
         <h1>UMA</h1>
         <p class="subheader">Ley N° 27.423</p>
-        <p class="subheader small">Actualización Automática</p>
       </div>
       <div class="content">
         <div class="box">
@@ -157,22 +146,5 @@
         </div>
       </div>
     </div>
-
-    <script>
-      // Función para convertir el contenedor en una imagen
-      function downloadImage() {
-        const container = document.getElementById("postContainer");
-        html2canvas(container).then(function (canvas) {
-          const link = document.createElement("a");
-          link.download = "post.png";
-          link.href = canvas.toDataURL();
-          link.click();
-        });
-      }
-
-      // Llama a esta función para descargar el contenido del contenedor como imagen
-      downloadImage();
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
   </body>
 </html>

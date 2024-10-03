@@ -20,6 +20,8 @@ const { findUnnotifiedFees } = require("../controllers/feesControllers");
 const FeesModel = require("../models/feesValues");
 const FeesValuesCaba = require("../models/feesValuesCaba");
 const { generateTelegramMessage } = require("../utils/formatText");
+const { generateScreenshot } = require("../utils/generateImages");
+const { newFeesPosts } = require("../posts/intagramPosts");
 
 const startCronJobs = async () => {
   const fees = await findUnnotifiedFees(FeesModel);
@@ -28,6 +30,7 @@ const startCronJobs = async () => {
     const message = generateTelegramMessage(fees);
     console.log(message);
   }
+  await generateScreenshot(newFeesPosts());
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(

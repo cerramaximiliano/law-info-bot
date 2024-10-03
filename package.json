@@ -2,9 +2,9 @@
   "name": "diariojudicial-bot",
   "version": "1.0.0",
   "description": "Telegram bot that scrapes news from Diario Judicial, saves to MongoDB and sends them to a Telegram chat.",
-  "main": "src/index.js",
+  "main": "index.js",
   "scripts": {
-    "start": "nodemon src/index.js",
+    "start": "nodemon index.js",
     "start:dev": "NODE_ENV=development nodemon app.js",
     "start:prod": "NODE_ENV=production nodemon app.js"
   },
@@ -12,6 +12,7 @@
     "axios": "^0.27.2",
     "cheerio": "^1.0.0-rc.10",
     "dotenv": "^16.0.3",
+    "express": "^4.20.0",
     "got": "^14.4.2",
     "moment": "^2.30.1",
     "moment-timezone": "^0.5.45",
