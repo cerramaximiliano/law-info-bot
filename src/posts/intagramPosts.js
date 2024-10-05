@@ -1,4 +1,15 @@
-const newFeesPosts = () => {
+const newFeesPosts = (array) => {
+  const boxes = array
+    .map(
+      (item) => `
+        <div class="box">
+          <p class="price">${item.price}</p>
+          <p class="date">${item.date}</p>
+        </div>
+      `
+    )
+    .join("");
+
   return `<!DOCTYPE html>
 <html lang="es">
   <head>
@@ -24,7 +35,6 @@ const newFeesPosts = () => {
         width: 1080px;
         height: 1080px;
         background-color: white;
-        padding: 20px;
         border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         text-align: center;
@@ -65,11 +75,10 @@ const newFeesPosts = () => {
       }
 
       .box {
+        margin: auto;
         background-color: #f4f7fc;
         width: 45%;
-        height: calc(
-          45vw
-        ); /* Calcula el alto para ser igual al ancho en términos de viewport width */
+        height: 50%;
         padding: 10px;
         border: 1px solid #dde5ee;
         border-radius: 12px;
@@ -137,19 +146,13 @@ const newFeesPosts = () => {
         <p class="subheader">Ley N° 27.423</p>
       </div>
       <div class="content">
-        <div class="box">
-          <p class="price">$59.009</p>
-          <p class="date">Julio 2024</p>
-        </div>
-        <div class="box">
-          <p class="price">$60.779</p>
-          <p class="date">Agosto 2024</p>
-        </div>
+        ${boxes}
       </div>
     </div>
   </body>
 </html>
 `;
 };
+
 
 module.exports = { newFeesPosts };

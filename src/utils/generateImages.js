@@ -3,7 +3,16 @@ const puppeteer = require("puppeteer");
 async function generateScreenshot(html) {
   const browser = await puppeteer.launch({
     headless: false,
-    args: ["--start-maximized"],
+    args: [
+      "--no-sandbox",
+      "--start-maximized",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--no-first-run",
+      "--no-zygote",
+      "--single-process",
+      "--disable-gpu",
+    ],
   });
 
   const page = await browser.newPage();
@@ -19,12 +28,12 @@ async function generateScreenshot(html) {
 
   await page.setContent(html);
 
-
-  const element = await page.$('.container');
+  const element = await page.$(".container");
 
   // Captura solo el contenido del nodo "container"
-  await element.screenshot({ path: 'container-screenshot.png' });
-  
+  await element.screenshot({
+    path: "container-screenshot.png",
+  });
 
   //await browser.close();
 }

@@ -30,7 +30,7 @@ const startCronJobs = async () => {
     const message = generateTelegramMessage(fees);
     console.log(message);
   }
-  await generateScreenshot(newFeesPosts());
+  await generateScreenshot(newFeesPosts([{price: "$60.000", date: "Junio 2024"}]));
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(
