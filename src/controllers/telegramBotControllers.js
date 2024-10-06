@@ -34,7 +34,6 @@ async function notifyUnnotifiedNews(type = "news", limit = 5, interval = 30) {
         logger.info("Noticia/Norma marcada como notificada");
       }
 
-
       // Si no es la última noticia, espera 5 minutos antes de enviar la siguiente
       if (i < limitedNews.length - 1) {
         await new Promise((resolve) =>
@@ -154,8 +153,6 @@ const notifyUpcomingUBACourses = async () => {
       }
     }
 
-
-
     logger.info(
       "Notificación de cursos de UBA Derecho enviada y cursos actualizados."
     );
@@ -164,8 +161,25 @@ const notifyUpcomingUBACourses = async () => {
   }
 };
 
+const notifyUnnotifiedFees = async (message, ids, type) => {
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const topicId = process.env.TELEGRAM_TOPIC_ID;
+  await bot.sendMessage(chatId, message, {
+    parse_mode: "Markdown",
+    message_thread_id: topicId,
+  });
+
+  if (process.env.NODE_ENV === "production") {
+    await markAsNotified(ids, type);
+    logger.info("Fee marcada como notificada");
+  }
+
+
+};
+
 module.exports = {
   notifyUnnotifiedNews,
   notifyUpcomingCourses,
   notifyUpcomingUBACourses,
+  notifyUnnotifiedFees,
 };

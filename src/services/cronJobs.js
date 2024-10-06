@@ -9,29 +9,31 @@ const {
   scrapeUBATalleres,
   scrapeUBAProgramas,
   scrapeFeesData,
+  scrapeFeesDataCABA,
 } = require("./scraper");
 const {
   notifyUnnotifiedNews,
   notifyUpcomingCourses,
   notifyUpcomingUBACourses,
+  notifyUnnotifiedFees,
 } = require("../controllers/telegramBotControllers");
 const { logger, clearLogs } = require("../config/logger");
-const { findUnnotifiedFees } = require("../controllers/feesControllers");
+const {
+  findUnnotifiedFees,
+  findLatestFees,
+} = require("../controllers/feesControllers");
 const FeesModel = require("../models/feesValues");
 const FeesValuesCaba = require("../models/feesValuesCaba");
 const { generateTelegramMessage } = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
 const { newFeesPosts } = require("../posts/intagramPosts");
 
-const startCronJobs = async () => {
-  const fees = await findUnnotifiedFees(FeesModel);
-  console.log(fees);
-  if (fees.length > 0) {
-    const message = generateTelegramMessage(fees);
-    console.log(message);
-  }
-  await generateScreenshot(newFeesPosts([{price: "$60.000", date: "Junio 2024"}]));
+function getIdArray(objectsArray) {
+  return objectsArray.map((obj) => obj._id);
+}
 
+const startCronJobs = async () => {
+ 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(
     "30 10 * * 1-5",
@@ -99,13 +101,14 @@ const startCronJobs = async () => {
     }
   );
 
-  // Cron que hace scraping en valores Fees Nación
+  // Cron que hace scraping en valores Fees Nación y Fees CABA
   cron.schedule(
     "10 8 * * 1-5",
     async () => {
       try {
         logger.info("Tarea de web scraping de normas iniciada");
         await scrapeFeesData();
+        await scrapeFeesDataCABA();
         logger.info("Tarea de web scraping de normas finalizada");
       } catch (err) {
         logger.error("Error en la tarea de web scraping Saij:", err);
@@ -117,7 +120,7 @@ const startCronJobs = async () => {
     }
   );
 
-  // Cron que hace scraping en valores Fees CABA
+  // Cron que busca Cursos
   cron.schedule(
     "0 19 * * 5",
     async () => {
@@ -137,7 +140,37 @@ const startCronJobs = async () => {
       timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
     }
   );
+  // Cron que notifica fees nuevos
+  cron.schedule(
+    "0 9 * * 1-5",
+    async () => {
+      try {
+        logger.info(`Iniciada tarea de notificación de fees`);
+        const fees = await findUnnotifiedFees(FeesModel);
+        if (fees && fees.length > 0) {
+          logger.info("Hay fees para notitificar");
+          const message = generateTelegramMessage("Actualización UMA PJN Ley 27.423", lastFees);
+          const ids = getIdArray(lastFees);
+          const notify = await notifyUnnotifiedFees(message, ids, "fees");
+        }
+        const feesCABA = await findUnnotifiedFees(FeesValuesCaba);
+        if (feesCABA && feesCABA.length > 0) {
+          logger.info("Hay feesCaba para notitificar");
+          const message = generateTelegramMessage("Actualización UMA CABA Ley 5.134", lastFees);
+          const ids = getIdArray(lastFees);
+          const notify = await notifyUnnotifiedFees(message, ids, "feesCaba");
+        }
+      } catch (err) {
+        logger.error(`Error notificación de fees nuevos`);
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
+    }
+  );
 
+  // Cron que notifica cursos los días 15 de cada mes
   cron.schedule(
     "0 9 15 * *",
     async () => {
@@ -160,7 +193,7 @@ const startCronJobs = async () => {
       timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
     }
   );
-
+  // Cron que notifica cursos los días 15 de cada mes
   cron.schedule(
     "0 9 16 * *",
     async () => {

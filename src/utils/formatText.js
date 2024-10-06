@@ -15,20 +15,22 @@ const formatPrice = (priceString) => {
   return `${numericPrice} ARS`; // Retornar el precio formateado en ARS
 };
 
-function generateTelegramMessage(results) {
+function generateTelegramMessage(title, results) {
   // Cabecera del mensaje
-  let message = "Actualización valor UMA PJN Ley 27.423\n\n";
+  let message = `${title}\n\n`;
 
   // Iterar sobre cada uno de los resultados y formatear los valores
   results.forEach((result) => {
     const formattedVigencia = moment(result.vigencia).format("DD-MM-YYYY"); // Formatear fecha de vigencia
-    const formattedMonto = `$ ${result.monto}`; // Formatear monto con dos decimales
+    const formattedMonto = `$ ${result.monto.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; // Formatear monto con separador de miles y dos decimales
 
-    // Agregar al mensaje cada item
-    message += `- Vigencia: ${formattedVigencia}, Monto: ${formattedMonto}\n`;
+    // Agregar al mensaje cada item con emoji de calendario
+    message += `📅 ${formattedVigencia}, 💵 ${formattedMonto}\n`;
   });
 
   return message;
 }
+
+
 
 module.exports = { truncateText, formatPrice, generateTelegramMessage };

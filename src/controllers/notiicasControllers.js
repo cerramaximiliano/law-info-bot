@@ -1,5 +1,7 @@
 const {logger} = require("../config/logger");
 const Acts = require("../models/acts");
+const FeesModel = require("../models/feesValues");
+const FeesValuesCaba = require("../models/feesValuesCaba");
 const News = require("../models/news");
 
 // Función para guardar las noticias nuevas
@@ -61,7 +63,27 @@ async function markAsNotified(newsId, type = "news") {
         },
         { new: true } // Esto devuelve el documento actualizado
       );
-    } else {
+    } else if ( type === "fees"){
+      updatedElements = await FeesModel.updateMany(
+        { _id: { $in: newsId } }, // Filtra por un array de IDs
+        {
+          notifiedByTelegram: true,
+          notificationDate: new Date(),
+        },
+        { new: true }
+      );
+    } else if( type === "feesCaba"){
+      updatedElements = await FeesValuesCaba.updateMany(
+        { _id: { $in: newsId } }, // Filtra por un array de IDs
+        {
+          notifiedByTelegram: true,
+          notificationDate: new Date(),
+        },
+        { new: true }
+      );
+    }
+    
+    else {
         updatedElements = await Acts.findByIdAndUpdate(
             newsId,
             {
@@ -73,7 +95,7 @@ async function markAsNotified(newsId, type = "news") {
     }
     return updatedElements;
   } catch (err) {
-    logger.error("Error al actualizar la notificación de la noticia:", err);
+    logger.error("Error al actualizar la notificación de la noticia/norma/fee:", err);
     throw err;
   }
 }
