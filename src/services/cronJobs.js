@@ -31,9 +31,20 @@ const { newFeesPosts } = require("../posts/intagramPosts");
 function getIdArray(objectsArray) {
   return objectsArray.map((obj) => obj._id);
 }
+function extractMontoAndPeriodo(dataArray) {
+  return dataArray.map(({ monto, periodo }) => ({ monto, periodo }));
+}
 
 const startCronJobs = async () => {
- 
+  //const fees = await findUnnotifiedFees(FeesModel);
+  const lastFees = await findLatestFees(FeesModel);
+  console.log(lastFees);
+  const array = extractMontoAndPeriodo(lastFees);
+  console.log(array);
+  await generateScreenshot(
+    newFeesPosts([{ price: "$60.000", date: "Junio 2024" }])
+  );
+
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(
     "30 10 * * 1-5",
@@ -149,14 +160,20 @@ const startCronJobs = async () => {
         const fees = await findUnnotifiedFees(FeesModel);
         if (fees && fees.length > 0) {
           logger.info("Hay fees para notitificar");
-          const message = generateTelegramMessage("Actualización UMA PJN Ley 27.423", lastFees);
+          const message = generateTelegramMessage(
+            "Actualización UMA PJN Ley 27.423",
+            lastFees
+          );
           const ids = getIdArray(lastFees);
           const notify = await notifyUnnotifiedFees(message, ids, "fees");
         }
         const feesCABA = await findUnnotifiedFees(FeesValuesCaba);
         if (feesCABA && feesCABA.length > 0) {
           logger.info("Hay feesCaba para notitificar");
-          const message = generateTelegramMessage("Actualización UMA CABA Ley 5.134", lastFees);
+          const message = generateTelegramMessage(
+            "Actualización UMA CABA Ley 5.134",
+            lastFees
+          );
           const ids = getIdArray(lastFees);
           const notify = await notifyUnnotifiedFees(message, ids, "feesCaba");
         }
