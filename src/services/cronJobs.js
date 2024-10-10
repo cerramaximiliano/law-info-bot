@@ -34,16 +34,16 @@ function getIdArray(objectsArray) {
 function extractMontoAndPeriodo(dataArray) {
   return dataArray.map(({ monto, periodo }) => ({ monto, periodo }));
 }
-
 const startCronJobs = async () => {
   //const fees = await findUnnotifiedFees(FeesModel);
   const lastFees = await findLatestFees(FeesModel);
-  console.log(lastFees);
   const array = extractMontoAndPeriodo(lastFees);
   console.log(array);
-  await generateScreenshot(
-    newFeesPosts([{ price: "$60.000", date: "Junio 2024" }])
-  );
+
+  
+  /* await generateScreenshot(
+    newFeesPosts(array)
+  ); */
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(

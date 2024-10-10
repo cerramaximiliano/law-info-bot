@@ -3,8 +3,8 @@ const newFeesPosts = (array) => {
     .map(
       (item) => `
         <div class="box">
-          <p class="price">${item.price}</p>
-          <p class="date">${item.date}</p>
+          <p class="price">${item.monto}</p>
+          <p class="date">${item.periodo}</p>
         </div>
       `
     )
