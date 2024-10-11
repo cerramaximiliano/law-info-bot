@@ -9,7 +9,6 @@ const newFeesPosts = (array) => {
       `
     )
     .join("");
-
   return `<!DOCTYPE html>
 <html lang="es">
   <head>
@@ -153,6 +152,4 @@ const newFeesPosts = (array) => {
 </html>
 `;
 };
-
-
 module.exports = { newFeesPosts };
