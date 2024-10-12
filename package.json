@@ -14,7 +14,6 @@
     "dotenv": "^16.0.3",
     "express": "^4.20.0",
     "got": "^14.4.2",
-    "instagram-private-api": "^1.46.1",
     "moment": "^2.30.1",
     "moment-timezone": "^0.5.45",
     "mongoose": "^6.3.3",
