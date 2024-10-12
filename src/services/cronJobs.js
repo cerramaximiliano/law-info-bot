@@ -41,7 +41,8 @@ const startCronJobs = async () => {
   const array = extractMontoAndPeriodo(lastFees);
   console.log(array);
 
-  
+  const htmlCode = newFeesPosts(array)
+  console.log(htmlCode)
   /* await generateScreenshot(
     newFeesPosts(array)
   ); */

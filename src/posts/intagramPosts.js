@@ -34,7 +34,6 @@ const newFeesPosts = (array) => {
         width: 1080px;
         height: 1080px;
         background-color: white;
-        border-radius: 12px;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         text-align: center;
         display: flex;
@@ -51,7 +50,6 @@ const newFeesPosts = (array) => {
         background-color: #2d3e50;
         color: white;
         padding: 20px;
-        border-radius: 12px 12px 0 0;
         height: 35%;
       }
 
