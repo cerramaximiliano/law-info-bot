@@ -32,8 +32,9 @@ function getIdArray(objectsArray) {
   return objectsArray.map((obj) => obj._id);
 }
 function extractMontoAndPeriodo(dataArray) {
-  return dataArray.map(({ monto, periodo }) => ({ monto, periodo }));
+  return dataArray.map(({ monto, periodo }) => ({ monto: monto.toLocaleString("es-AR"), periodo }));
 }
+
 const startCronJobs = async () => {
   //const fees = await findUnnotifiedFees(FeesModel);
   const lastFees = await findLatestFees(FeesModel);
