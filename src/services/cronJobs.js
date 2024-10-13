@@ -1,4 +1,5 @@
 const cron = require("node-cron");
+const axios = require("axios");
 const {
   scrapeNoticias,
   scrapeSaij,
@@ -27,13 +28,21 @@ const FeesValuesCaba = require("../models/feesValuesCaba");
 const { generateTelegramMessage } = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
 const { newFeesPosts } = require("../posts/intagramPosts");
+const { getInstagramPosts, uploadMedia, createPost } = require("../controllers/igControllers");
+const { uploadImage } = require("./cloudinaryService");
+
 
 function getIdArray(objectsArray) {
   return objectsArray.map((obj) => obj._id);
 }
 function extractMontoAndPeriodo(dataArray) {
-  return dataArray.map(({ monto, periodo }) => ({ monto: monto.toLocaleString("es-AR"), periodo }));
+  return dataArray.map(({ monto, periodo }) => ({
+    monto: monto.toLocaleString("es-AR"),
+    periodo,
+  }));
 }
+
+
 
 const startCronJobs = async () => {
   //const fees = await findUnnotifiedFees(FeesModel);
@@ -41,8 +50,21 @@ const startCronJobs = async () => {
   const array = extractMontoAndPeriodo(lastFees);
   console.log(array);
 
-  const htmlCode = newFeesPosts(array)
-  console.log(htmlCode)
+  //const htmlCode = newFeesPosts(array);
+  //console.log(htmlCode);
+
+  //const posts = await getInstagramPosts();
+  //console.log(posts);
+
+  //const imageURL = await uploadImage("./src/files/container-screenshot.png");
+  
+  const imageURL = "https://res.cloudinary.com/dqyoeolib/image/upload/v1728770827/default_folder/zuk72v1khqaztsjbt4a7.png"
+  const caption = "Esta es una descripción";
+  console.log(imageURL);
+  const mediaId = await uploadMedia(imageURL, caption);
+  
+  //await createPost(mediaId);
+
   /* await generateScreenshot(
     newFeesPosts(array)
   ); */
