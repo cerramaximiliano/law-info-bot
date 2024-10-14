@@ -3,25 +3,15 @@ const { logger } = require("../config/logger");
 const accessToken = process.env.IG_API_TOKEN;
 const instagramAccountId = process.env.IG_ACCOUNT_ID;
 
-const getInstagramPosts = async () => {
+  
+const uploadMedia = async (imageUrl, caption) => {
   try {
-    const response = await axios.get(
-      `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,thumbnail_url,permalink&access_token=${accessToken}`
-    );
-    const data = response.data;
-    return data.data;
-  } catch (error) {
-    console.log(error)
-    logger.error("Error al obtener los posts:", error);
-  }
-};
-
-const uploadMedia = async (imageUrl) => {
-  try {
-    const response = await axios.post(
-      `https://graph.instagram.com/v21.0/${instagramAccountId}/media`,
+    // Paso 1: Crear un objeto de medios
+    const responseMedia = await axios.post(
+      `https://graph.facebook.com/v17.0/${instagramAccountId}/media`,
       {
-        image_url: imageUrl,
+        image_url: imageUrl, // URL de la imagen
+        caption: caption // Descripción que acompañará a la imagen
       },
       {
         headers: {
@@ -32,27 +22,33 @@ const uploadMedia = async (imageUrl) => {
         },
       }
     );
-    console.log("ID del medio:", response.data.id);
-    return response.data.id;
+
+    const mediaId = responseMedia.data.id;
+    logger.info("ID del medio:", mediaId);
+
+    // Paso 2: Publicar el objeto de medios en Instagram
+    const responsePublish = await axios.post(
+      `https://graph.facebook.com/v17.0/${instagramAccountId}/media_publish`,
+      {
+        creation_id: mediaId, // El ID del medio creado en el paso anterior
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        params: {
+          access_token: accessToken,
+        },
+      }
+    );
+
+    logger.info("Publicación exitosa:", responsePublish.data);
   } catch (error) {
-    console.log(error)
-    console.error(
-      "Error al subir el medio:",
+    logger.error(
+      "Error al subir la imagen:",
       error.response ? error.response.data : error.message
     );
   }
 };
 
-const createPost = async (mediaId) => {
-  try {
-    const response = await axios.post(
-      `https://graph.instagram.com/me/{instagram_account_id}/media_publish?creation_id=${mediaId}&access_token=${accessToken}`
-    );
-    logger.info("Post publicado:", response.data);
-  } catch (error) {
-    console.log(error);
-    logger.error("Error al publicar el post:", error);
-  }
-};
-
-module.exports = { getInstagramPosts, uploadMedia, createPost };
+module.exports = { uploadMedia };

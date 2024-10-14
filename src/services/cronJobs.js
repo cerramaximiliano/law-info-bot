@@ -28,9 +28,8 @@ const FeesValuesCaba = require("../models/feesValuesCaba");
 const { generateTelegramMessage } = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
 const { newFeesPosts } = require("../posts/intagramPosts");
-const { getInstagramPosts, uploadMedia, createPost } = require("../controllers/igControllers");
+const { uploadMedia } = require("../controllers/igControllers");
 const { uploadImage } = require("./cloudinaryService");
-
 
 function getIdArray(objectsArray) {
   return objectsArray.map((obj) => obj._id);
@@ -42,32 +41,23 @@ function extractMontoAndPeriodo(dataArray) {
   }));
 }
 
-
-
 const startCronJobs = async () => {
   //const fees = await findUnnotifiedFees(FeesModel);
   const lastFees = await findLatestFees(FeesModel);
   const array = extractMontoAndPeriodo(lastFees);
   console.log(array);
 
-  //const htmlCode = newFeesPosts(array);
+  const htmlCode = newFeesPosts(array, "2");
   //console.log(htmlCode);
-
-  //const posts = await getInstagramPosts();
-  //console.log(posts);
+  await generateScreenshot(htmlCode);
 
   //const imageURL = await uploadImage("./src/files/container-screenshot.png");
-  
-  const imageURL = "https://res.cloudinary.com/dqyoeolib/image/upload/v1728770827/default_folder/zuk72v1khqaztsjbt4a7.png"
+
+  const imageURL =
+    "https://res.cloudinary.com/dqyoeolib/image/upload/v1728770827/default_folder/zuk72v1khqaztsjbt4a7.png";
   const caption = "Esta es una descripción";
   console.log(imageURL);
-  const mediaId = await uploadMedia(imageURL, caption);
-  
-  //await createPost(mediaId);
-
-  /* await generateScreenshot(
-    newFeesPosts(array)
-  ); */
+  //const mediaId = await uploadMedia(imageURL, caption);
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(
