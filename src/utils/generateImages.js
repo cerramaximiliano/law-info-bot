@@ -3,6 +3,10 @@ const path = require("path");
 const fs = require("fs");
 const { logger } = require("../config/logger");
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 let browser;
 async function generateScreenshot(html) {
   try {
@@ -36,19 +40,21 @@ async function generateScreenshot(html) {
 
     // Generar timestamp con fecha y hora
     const timestamp = new Date().toISOString().replace(/:/g, "-");
-
+    const fileName = `container-screenshot-${timestamp}.png`;
     const screenshotDir = path.join(__dirname, "..", "files"); // ".." para salir de "utils" y entrar a "files" dentro de "src"
-    const screenshotPath = path.join(screenshotDir, `container-screenshot-${timestamp}.png`);
-  
+    const screenshotPath = path.join(screenshotDir, fileName);
+
     // Verifica si la carpeta 'src/files' existe, y si no, la crea
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
-
+    delay(5000)
     // Captura solo el contenido del nodo "container"
     await element.screenshot({
       path: screenshotPath,
     });
+
+    return fileName;
   } catch (err) {
     logger.error(`Error en la generación del post: ${err}`);
   } finally {

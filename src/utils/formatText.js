@@ -22,7 +22,10 @@ function generateTelegramMessage(title, results) {
   // Iterar sobre cada uno de los resultados y formatear los valores
   results.forEach((result) => {
     const formattedVigencia = moment(result.vigencia).format("DD-MM-YYYY"); // Formatear fecha de vigencia
-    const formattedMonto = `$ ${result.monto.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; // Formatear monto con separador de miles y dos decimales
+    const formattedMonto = `$ ${result.monto.toLocaleString("es-AR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`; // Formatear monto con separador de miles y dos decimales
 
     // Agregar al mensaje cada item con emoji de calendario
     message += `📅 ${formattedVigencia}, 💵 ${formattedMonto}\n`;
@@ -31,6 +34,22 @@ function generateTelegramMessage(title, results) {
   return message;
 }
 
+function extractMontoAndPeriodo(dataArray) {
+  dataArray.sort((a, b) => moment(a.vigencia) - moment(b.vigencia));
+  return dataArray.map(({ monto, periodo }) => ({
+    monto: monto.toLocaleString("es-AR"),
+    periodo,
+  }));
+}
 
+function getIdArray(objectsArray) {
+  return objectsArray.map((obj) => obj._id);
+}
 
-module.exports = { truncateText, formatPrice, generateTelegramMessage };
+module.exports = {
+  truncateText,
+  formatPrice,
+  generateTelegramMessage,
+  extractMontoAndPeriodo,
+  getIdArray,
+};

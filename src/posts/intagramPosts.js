@@ -518,15 +518,7 @@ const newFeesPosts = (array, designStyle) => {
         <div class="divider"></div>
       </div>
       <div class="content">
-        <div class="box">
-          <p class="price">$ 60.779</p>
-          <p class="date">AGO-2024</p>
-        </div>
-
-        <div class="box">
-          <p class="price">$ 59.009</p>
-          <p class="date">JUL-2024</p>
-        </div>
+        ${boxes}
       </div>
        <div>
         <p class="logo">Law||Analytics</p>

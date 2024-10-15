@@ -25,43 +25,40 @@ const {
 } = require("../controllers/feesControllers");
 const FeesModel = require("../models/feesValues");
 const FeesValuesCaba = require("../models/feesValuesCaba");
-const { generateTelegramMessage } = require("../utils/formatText");
+const {
+  generateTelegramMessage,
+  extractMontoAndPeriodo,
+  getIdArray,
+} = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
 const { newFeesPosts } = require("../posts/intagramPosts");
 const { uploadMedia } = require("../controllers/igControllers");
-const { uploadImage } = require("./cloudinaryService");
-
-function getIdArray(objectsArray) {
-  return objectsArray.map((obj) => obj._id);
-}
-function extractMontoAndPeriodo(dataArray) {
-  return dataArray.map(({ monto, periodo }) => ({
-    monto: monto.toLocaleString("es-AR"),
-    periodo,
-  }));
-}
+const { uploadImage, deleteImage } = require("./cloudinaryService");
 
 const startCronJobs = async () => {
-  //const fees = await findUnnotifiedFees(FeesModel);
-  const lastFees = await findLatestFees(FeesModel);
-  const array = extractMontoAndPeriodo(lastFees);
-  console.log(array);
 
-  const htmlCode = newFeesPosts(array, "2");
-  console.log(htmlCode);
-  await generateScreenshot(htmlCode);
-
-  //const imageURL = await uploadImage("./src/files/container-screenshot.png");
-
-  const imageURL =
-    "https://res.cloudinary.com/dqyoeolib/image/upload/v1728770827/default_folder/zuk72v1khqaztsjbt4a7.png";
-  const caption = "Esta es una descripción";
-  console.log(imageURL);
-  //const mediaId = await uploadMedia(imageURL, caption);
+  // Cron que envía el posteo de Actualización de UMA PJN
+  let feesPostsUMAPJNHours = "0 10 * * 1-5";
+  cron.schedule(feesPostsUMAPJNHours, async() => {
+    const fees = await findUnnotifiedFees(FeesModel);
+    const array = extractMontoAndPeriodo(fees);
+    const htmlCode = newFeesPosts(array, "2");
+    const generatedFile = await generateScreenshot(htmlCode);
+    const image = await uploadImage(`./src/files/${generatedFile}`);
+    const imageId = image.public_id;
+    const caption =
+    "Nuevos valores UMA Ley Nº 27.423 \n#UMA #PoderJudicial #Aranceles #Honorarios\n\n";
+    const mediaId = await uploadMedia(image.secure_url, caption);
+    await deleteImage(imageId)
+  }, {
+    scheduled: true,
+    timezone: "America/Argentina/Buenos_Aires",
+  })
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
+  let notifyNews = "30 10 * * 1-5";
   cron.schedule(
-    "30 10 * * 1-5",
+    notifyNews,
     async () => {
       try {
         logger.info("Tarea de envío de mensajes de bot iniciada");
@@ -78,8 +75,9 @@ const startCronJobs = async () => {
   );
 
   // Cron que envia mensajes Normativa con Telegram bot no notificados
+  let notifyNewsHours = "30 12 * * 1-5";
   cron.schedule(
-    "30 12 * * 1-5",
+    notifyNewsHours,
     async () => {
       try {
         logger.info("Tarea de envío de mensajes de bot iniciada");
@@ -96,7 +94,8 @@ const startCronJobs = async () => {
   );
 
   // Cron que hace scraping en Noticias
-  cron.schedule("*/15 * * * *", async () => {
+  let scrapingNoticias = "*/15 * * * *";
+  cron.schedule(scrapingNoticias, async () => {
     try {
       logger.info("Tarea de web scraping iniciada");
       await scrapeNoticias();
@@ -109,8 +108,9 @@ const startCronJobs = async () => {
   });
 
   // Cron que hace scraping en Normativa
+  let scrapingActs = "0 8 * * 1-5";
   cron.schedule(
-    "0 8 * * 1-5",
+    scrapingActs,
     async () => {
       try {
         logger.info("Tarea de web scraping de normas iniciada");
@@ -127,8 +127,9 @@ const startCronJobs = async () => {
   );
 
   // Cron que hace scraping en valores Fees Nación y Fees CABA
+  let scrapingFees = "10 8 * * 1-5";
   cron.schedule(
-    "10 8 * * 1-5",
+    scrapingFees,
     async () => {
       try {
         logger.info("Tarea de web scraping de normas iniciada");
@@ -146,8 +147,9 @@ const startCronJobs = async () => {
   );
 
   // Cron que busca Cursos
+  let scrapingCourses = "0 19 * * 5";
   cron.schedule(
-    "0 19 * * 5",
+    scrapingCourses,
     async () => {
       try {
         logger.info("Tarea de scraping de diplomados y cursos iniciada");
@@ -165,9 +167,11 @@ const startCronJobs = async () => {
       timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
     }
   );
+
   // Cron que notifica fees nuevos
+  let feesNoticationHours = "0 9 * * 1-5";
   cron.schedule(
-    "0 9 * * 1-5",
+    feesNoticationHours,
     async () => {
       try {
         logger.info(`Iniciada tarea de notificación de fees`);
@@ -202,8 +206,9 @@ const startCronJobs = async () => {
   );
 
   // Cron que notifica cursos los días 15 de cada mes
+  let notifyCoursesHours = "0 9 15 * *";
   cron.schedule(
-    "0 9 15 * *",
+    notifyCoursesHours,
     async () => {
       try {
         logger.info(
@@ -225,8 +230,9 @@ const startCronJobs = async () => {
     }
   );
   // Cron que notifica cursos los días 15 de cada mes
+  let notifyNewCoursesHours = "0 9 16 * *";
   cron.schedule(
-    "0 9 16 * *",
+    notifyNewCoursesHours,
     async () => {
       try {
         logger.info(
@@ -249,7 +255,8 @@ const startCronJobs = async () => {
   );
 
   // Cron que limpia el archivo de Logs
-  cron.schedule("0 0 */7 * *", () => {
+  let cleanLogsHours = "0 0 */7 * *";
+  cron.schedule(cleanLogsHours, () => {
     logger.log("Se ejecuta limpieza de logs");
     clearLogs();
   });
