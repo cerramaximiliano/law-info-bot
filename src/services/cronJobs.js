@@ -48,7 +48,7 @@ const startCronJobs = async () => {
   console.log(array);
 
   const htmlCode = newFeesPosts(array, "2");
-  //console.log(htmlCode);
+  console.log(htmlCode);
   await generateScreenshot(htmlCode);
 
   //const imageURL = await uploadImage("./src/files/container-screenshot.png");

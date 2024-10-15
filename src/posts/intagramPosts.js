@@ -143,152 +143,218 @@ const newFeesPosts = (array, designStyle) => {
       break;
     case "2":
       styles = `
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        
-        body {
-          font-family: "Poppins", sans-serif;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          margin: 0;
-          background-color: #f8f9fa; /* Fondo suave */
-        }
-        
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0;
+        background-color: #f8f9fa; /* Fondo suave */
+      }
+
+      .container {
+        width: 1080px;
+        height: 1080px;
+        background-color: #0c1922;
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15); /* Sombra más profunda */
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 25px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      /* Borde superior izquierdo (horizontal y vertical) */
+      .border-top-left {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 50%;
+        height: 20px;
+        background-color: #1b2a41; /* Color para el borde superior izquierdo */
+      }
+
+      .border-left-top {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 20px;
+        height: 50%;
+        background-color: #1b2a41; /* Color para el borde vertical izquierdo */
+      }
+
+      /* Borde superior derecho (horizontal y vertical) */
+      .border-top-right {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50%;
+        height: 20px;
+        background-color: #bfbcd0; /* Color para el borde superior derecho */
+      }
+
+      .border-right-top {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 20px;
+        height: 50%;
+        background-color: #bfbcd0; /* Color para el borde vertical derecho */
+      }
+
+      /* Borde inferior izquierdo (horizontal y vertical) */
+      .border-bottom-left {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 50%;
+        height: 20px;
+        background-color: #bfbcd0; /* Color para el borde inferior izquierdo */
+      }
+
+      .border-left-bottom {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 20px;
+        height: 50%;
+        background-color: #bfbcd0; /* Color para el borde vertical izquierdo */
+      }
+
+      /* Borde inferior derecho (horizontal y vertical) */
+      .border-bottom-right {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 50%;
+        height: 20px;
+        background-color: #1b2a41; /* Color para el borde inferior derecho */
+      }
+
+      .border-right-bottom {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 20px;
+        height: 50%;
+        background-color: #1b2a41; /* Color para el borde vertical derecho */
+      }
+
+      .header {
+        background-color: #0c1922;
+        color: white;
+        padding: 30px;
+        height: 35%;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        position: relative;
+      }
+
+      h1 {
+        font-size: 9rem;
+        margin-bottom: 15px;
+        font-weight: 700;
+      }
+
+      .subheader {
+        font-size: 3.5rem;
+        color: #b0c4de;
+        position: relative;
+        text-align: center;
+      }
+
+      .divider {
+        margin: auto;
+        margin-top: 8px;
+        align-items: center;
+        width: 50%;
+        height: 3.5px; /* Línea más gruesa */
+        background-color: #a2b9cf;
+      }
+
+      .content {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        margin-top: 30px;
+        flex-grow: 1;
+      }
+
+      .box {
+        max-height: fit-content;
+        background-color: #314a60;
+        width: 45%;
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .price {
+        font-size: 6.5rem;
+        color: #ffff;
+        margin-bottom: 10px;
+        font-weight: bold;
+        position: relative;
+      }
+
+      .date {
+        font-size: 3rem;
+        color: #7f8c8d;
+        margin-top: 15px;
+      }
+      .logo {
+        color: white;
+        font-family: "Cinzel", serif;
+        font-optical-sizing: auto;
+        font-weight: <weight>;
+        font-style: normal;
+        font-size: 53px;
+        margin-bottom: 80px;
+      }
+
+      @media (max-width: 1080px) {
         .container {
-          width: 1080px;
-          height: 1080px;
-          background-color: white;
-          box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15); /* Sombra más profunda */
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          border-radius: 25px;
-          padding: 25px;
-          border: 3px solid #e0e0e0; /* Borde con más peso */
-          position: relative;
-          overflow: hidden;
+          width: 90vw;
+          height: 90vw;
+          padding: 15px;
         }
-        
-        .container:hover {
-          transform: translateY(-8px);
-        }
-      
-        /* Línea decorativa en la parte superior del contenedor */
-        .container::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 5px;
-          background: linear-gradient(90deg, #3498db, #2ecc71); /* Gradiente decorativo */
-        }
-      
-        .header {
-          background-color: #2c3e50;
-          color: white;
-          padding: 30px;
-          border-radius: 15px;
-          height: 35%;
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-          position: relative;
-        }
-        
+
         h1 {
-          font-size: 9rem;
-          margin-bottom: 15px;
-          font-weight: 700;
+          font-size: 5.5rem;
         }
-        
+
         .subheader {
-          font-size: 3.5rem;
-          color: #b0c4de;
-          position: relative;
+          font-size: 2rem;
         }
-      
-        /* Línea decorativa gruesa debajo del título */
-        .subheader::after {
-          content: "";
-          width: 70%;
-          height: 5px; /* Línea más gruesa */
-          background-color: #a2b9cf;
-          position: absolute;
-          bottom: -15px;
-          left: 15%;
-        }
-        
-        .content {
-          display: flex;
-          justify-content: space-around;
-          margin-top: 30px;
-          flex-grow: 1;
-        }
-      
-        .box {
-          background: none; /* Elimina el fondo del box */
-          width: 45%;
-          padding: 25px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          position: relative;
-          transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-      
+
         .price {
-          font-size: 6.5rem;
-          color: #2c3e50;
-          margin-bottom: 10px;
-          font-weight: bold;
-          position: relative;
+          font-size: 4rem;
         }
-      
-        /* Eliminada la línea debajo del precio */
-        
+
         .date {
-          font-size: 3rem;
-          color: #7f8c8d;
-          margin-top: 15px;
+          font-size: 1.5rem;
         }
-        
-        @media (max-width: 1080px) {
-          .container {
-            width: 90vw;
-            height: 90vw;
-            padding: 15px;
-          }
-          
-          h1 {
-            font-size: 5.5rem;
-          }
-          
-          .subheader {
-            font-size: 2rem;
-          }
-          
-          .price {
-            font-size: 4rem;
-          }
-          
-          .date {
-            font-size: 1.5rem;
-          }
-          
-          .content {
-            flex-direction: column;
-            align-items: center;
-          }
-          
-          .box {
-            width: 80%;
-            margin-bottom: 25px;
-          }
+
+        .content {
+          flex-direction: column;
+          align-items: center;
         }
+
+        .box {
+          width: 80%;
+          margin-bottom: 25px;
+        }
+      }
       `;
       break;
 
@@ -415,23 +481,58 @@ const newFeesPosts = (array, designStyle) => {
   }
 
   return `
-    <html>
+    <html lang="es">
     <head>
+      <meta charset="UTF-8" />
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&display=swap"
+      rel="stylesheet"
+    />
       <style>
         ${styles}
       </style>
     </head>
-    <body>
-      <div class="container" id="postContainer">
-        <div class="header">
-          <h1>UMA</h1>
-          <p class="subheader">Ley N° 27.423</p>
+  <body>
+    <div class="container" id="postContainer">
+      <!-- Borde superior izquierdo -->
+      <div class="border-top-left"></div>
+      <div class="border-left-top"></div>
+
+      <!-- Borde superior derecho -->
+      <div class="border-top-right"></div>
+      <div class="border-right-top"></div>
+
+      <!-- Borde inferior izquierdo -->
+      <div class="border-bottom-left"></div>
+      <div class="border-left-bottom"></div>
+
+      <!-- Borde inferior derecho -->
+      <div class="border-bottom-right"></div>
+      <div class="border-right-bottom"></div>
+
+      <div class="header">
+        <h1>UMA</h1>
+        <p class="subheader">Ley N° 27.423</p>
+        <div class="divider"></div>
+      </div>
+      <div class="content">
+        <div class="box">
+          <p class="price">$ 60.779</p>
+          <p class="date">AGO-2024</p>
         </div>
-        <div class="content">
-          ${boxes}
+
+        <div class="box">
+          <p class="price">$ 59.009</p>
+          <p class="date">JUL-2024</p>
         </div>
       </div>
-    </body>
+       <div>
+        <p class="logo">Law||Analytics</p>
+      </div>
+    </div>
+  </body>
     </html>
   `;
 };
