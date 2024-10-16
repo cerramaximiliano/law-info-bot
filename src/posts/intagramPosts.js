@@ -1,4 +1,4 @@
-const newFeesPosts = (array, designStyle) => {
+const newFeesPosts = (array, designStyle, title) => {
   let styles = "";
   const boxes = array
     .map(
@@ -513,8 +513,8 @@ const newFeesPosts = (array, designStyle) => {
       <div class="border-right-bottom"></div>
 
       <div class="header">
-        <h1>UMA</h1>
-        <p class="subheader">Ley N° 27.423</p>
+        <h1>${title[0]}</h1>
+        <p class="subheader">${title[1]}</p>
         <div class="divider"></div>
       </div>
       <div class="content">
