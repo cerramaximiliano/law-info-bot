@@ -158,7 +158,7 @@
 
     // Cron que notifica fees nuevos en Telegram y envía IG posts
     cron.schedule(
-      cronSchedules.feesNoticationHours,
+      cronSchedules.feesNotificationHours,
       async () => {
         try {
           logger.info(`Iniciada tarea de notificación de fees`);
