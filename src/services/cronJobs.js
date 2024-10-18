@@ -11,6 +11,7 @@
     scrapeUBAProgramas,
     scrapeFeesData,
     scrapeFeesDataCABA,
+    scrapeFeesDataBsAs,
   } = require("./scraper");
   const {
     notifyUnnotifiedNews,
@@ -49,6 +50,7 @@
   };
 
   const startCronJobs = async () => {
+
     // Cron que envia mensajes Noticias a Telegram bot no notificados
     cron.schedule(
       cronSchedules.notifyNews,

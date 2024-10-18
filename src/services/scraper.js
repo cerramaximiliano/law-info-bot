@@ -847,8 +847,8 @@ const scrapeFeesData = async () => {
           const fechaRaw = columns[1].innerText.trim();
           const vigenciaRaw = columns[4].innerText.trim();
           const montoRaw = columns[2].innerText.trim();
-          const montoSinPunto = montoRaw.replace('.', '');
-          
+          const montoSinPunto = montoRaw.replace(".", "");
+
           // Aquí almacenamos las fechas y el monto en strings
           const resolucion = columns[0].innerText.trim();
           const fecha = fechaRaw; // Será procesada con Moment.js más adelante
@@ -920,7 +920,7 @@ const scrapeFeesDataCABA = async () => {
           const fechaRaw = columns[1].innerText.trim();
           const vigenciaRaw = columns[4].innerText.trim();
           const montoRaw = columns[2].innerText.trim();
-          const montoSinPunto = montoRaw.replace('.', '');
+          const montoSinPunto = montoRaw.replace(".", "");
           // Aquí almacenamos las fechas y el monto en strings
           const resolucion = columns[0].innerText.trim();
           const fecha = fechaRaw; // Será procesada con Moment.js más adelante
@@ -947,19 +947,142 @@ const scrapeFeesDataCABA = async () => {
     const processedData = rows.map((row) => {
       const parsedFecha = moment(row.fecha, "DD/MM/YYYY");
       const parsedVigencia = moment(row.vigencia, "DD/MM/YYYY");
-      
+
       return {
         ...row,
         fecha: parsedFecha.isValid() ? parsedFecha.toDate() : null, // Verifica si la fecha es válida, si no, asigna `null`
         vigencia: parsedVigencia.isValid() ? parsedVigencia.toDate() : null, // Verifica si la vigencia es válida, si no, asigna `null`
-        monto: parseFloat(row.monto.replace(/[^0-9,.-]+/g, "").replace(",", ".")), // Limpia y convierte el monto a número
+        monto: parseFloat(
+          row.monto.replace(/[^0-9,.-]+/g, "").replace(",", ".")
+        ), // Limpia y convierte el monto a número
       };
     });
 
-    
     await saveFeesValuesAfterLastVigenciaCaba(processedData);
   } catch (err) {
     logger.error(`Error scraping fees data: ${err}`);
+  }
+};
+
+const scrapeFeesDataBsAs = async () => {
+  let browser;
+  try {
+    // Inicia el navegador
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
+    });
+    const page = await browser.newPage();
+
+    // Navega a la URL especificada
+    await page.goto("https://www.scba.gov.ar/paginas.asp?id=41320", {
+      waitUntil: "domcontentloaded",
+    });
+
+    // Espera a que la tabla esté presente en la página
+    await page.waitForSelector("table");
+
+    // Extrae los datos de la tabla
+    const tableData = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll("table tr"));
+      return rows.map((row) => {
+        const cells = Array.from(row.querySelectorAll("th, td"));
+        return cells.map((cell) => cell.innerText.trim());
+      });
+    });
+
+    // Filtrar las filas vacías o incompletas y eliminar celdas vacías
+   // Filtrar las filas vacías o incompletas y eliminar celdas vacías
+   const filteredData = tableData
+   .map(row => row.filter(cell => cell !== ''))
+   .filter(row => row.length > 0);
+
+ // A partir del segundo elemento, transformar los strings en objetos con propiedades date y monto
+ const transformedData = filteredData.map((row, index) => {
+  if (index === 0) return row;
+  return row.map(cell => {
+    const match = cell.match(/A partir del (\d+º? de \w+ de \d+): \$ ([\d\.\,\-]+)/);
+    if (match) {
+      const dateParts = match[1].replace('º', '').split(' de ');
+      const day = parseInt(dateParts[0], 10);
+      const month = dateParts[1];
+      const year = parseInt(dateParts[2], 10);
+      const months = {
+        'enero': 0,
+        'febrero': 1,
+        'marzo': 2,
+        'abril': 3,
+        'mayo': 4,
+        'junio': 5,
+        'julio': 6,
+        'agosto': 7,
+        'septiembre': 8,
+        'octubre': 9,
+        'noviembre': 10,
+        'diciembre': 11
+      };
+      const date = new Date(year, months[month], day);
+      const monto = parseFloat(match[2].replace(/\./g, '').replace(',', '.'));
+      return {
+        date: date,
+        monto: monto
+      };
+    }
+    return cell;
+  });
+}).map((row, index) => {
+  if (index === 0) return row;
+  return row.map(cell => {
+    if (typeof cell === 'string') {
+      const match = cell.match(/A partir del (\d+º? de \w+ de \d+): \$ ([\d\.\,\-]+)/);
+      if (match) {
+        const dateParts = match[1].replace('º', '').split(' de ');
+        const day = parseInt(dateParts[0], 10);
+        const month = dateParts[1];
+        const year = parseInt(dateParts[2], 10);
+        const months = {
+          'enero': 0,
+          'febrero': 1,
+          'marzo': 2,
+          'abril': 3,
+          'mayo': 4,
+          'junio': 5,
+          'julio': 6,
+          'agosto': 7,
+          'septiembre': 8,
+          'octubre': 9,
+          'noviembre': 10,
+          'diciembre': 11
+        };
+        const date = new Date(year, months[month], day);
+        const monto = parseFloat(match[2].replace(/\./g, '').replace(',', '.'));
+        return {
+          date: date,
+          monto: monto
+        };
+      }
+    }
+    return cell;
+  });
+});
+// Imprime los datos de la tabla transformados
+    console.log(transformedData);
+    
+  } catch (error) {
+    console.error("Error al realizar el scraping:", error);
+  } finally {
+    // Cierra el navegador
+    if (browser) {
+      await browser.close();
+    }
   }
 };
 
@@ -975,4 +1098,5 @@ module.exports = {
   scrapeUBAProgramas,
   scrapeFeesData,
   scrapeFeesDataCABA,
+  scrapeFeesDataBsAs,
 };
