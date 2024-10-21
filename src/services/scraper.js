@@ -21,6 +21,7 @@ const {
   saveFeesValuesAfterLastVigencia,
   saveFeesValuesAfterLastVigenciaCaba,
 } = require("../controllers/feesControllers");
+const { parseDateAndMonto } = require("../utils/formatText");
 
 const siteDetails = {
   sitekey: process.env.RECAPTCHA_SCRAPE_PAGE_SITE_KEY,
@@ -1000,82 +1001,25 @@ const scrapeFeesDataBsAs = async () => {
     });
 
     // Filtrar las filas vacías o incompletas y eliminar celdas vacías
-   // Filtrar las filas vacías o incompletas y eliminar celdas vacías
-   const filteredData = tableData
-   .map(row => row.filter(cell => cell !== ''))
-   .filter(row => row.length > 0);
-
- // A partir del segundo elemento, transformar los strings en objetos con propiedades date y monto
- const transformedData = filteredData.map((row, index) => {
-  if (index === 0) return row;
-  return row.map(cell => {
-    const match = cell.match(/A partir del (\d+º? de \w+ de \d+): \$ ([\d\.\,\-]+)/);
-    if (match) {
-      const dateParts = match[1].replace('º', '').split(' de ');
-      const day = parseInt(dateParts[0], 10);
-      const month = dateParts[1];
-      const year = parseInt(dateParts[2], 10);
-      const months = {
-        'enero': 0,
-        'febrero': 1,
-        'marzo': 2,
-        'abril': 3,
-        'mayo': 4,
-        'junio': 5,
-        'julio': 6,
-        'agosto': 7,
-        'septiembre': 8,
-        'octubre': 9,
-        'noviembre': 10,
-        'diciembre': 11
-      };
-      const date = new Date(year, months[month], day);
-      const monto = parseFloat(match[2].replace(/\./g, '').replace(',', '.'));
-      return {
-        date: date,
-        monto: monto
-      };
-    }
-    return cell;
-  });
-}).map((row, index) => {
-  if (index === 0) return row;
-  return row.map(cell => {
-    if (typeof cell === 'string') {
-      const match = cell.match(/A partir del (\d+º? de \w+ de \d+): \$ ([\d\.\,\-]+)/);
-      if (match) {
-        const dateParts = match[1].replace('º', '').split(' de ');
-        const day = parseInt(dateParts[0], 10);
-        const month = dateParts[1];
-        const year = parseInt(dateParts[2], 10);
-        const months = {
-          'enero': 0,
-          'febrero': 1,
-          'marzo': 2,
-          'abril': 3,
-          'mayo': 4,
-          'junio': 5,
-          'julio': 6,
-          'agosto': 7,
-          'septiembre': 8,
-          'octubre': 9,
-          'noviembre': 10,
-          'diciembre': 11
-        };
-        const date = new Date(year, months[month], day);
-        const monto = parseFloat(match[2].replace(/\./g, '').replace(',', '.'));
-        return {
-          date: date,
-          monto: monto
-        };
+    const filteredData = tableData
+      .map((row) => row.filter((cell) => cell !== ""))
+      .filter((row) => row.length > 0);
+      console.log(filteredData)
+    // Unificar los datos y agregar la propiedad type
+    const unifiedData = [];
+    filteredData.slice(1).forEach((row) => {
+      if (row[0]) {
+        const parsedFirst = parseDateAndMonto(row[0], filteredData[0][0]);
+        if (parsedFirst) unifiedData.push(parsedFirst);
       }
-    }
-    return cell;
-  });
-});
-// Imprime los datos de la tabla transformados
-    console.log(transformedData);
-    
+      if (row[1]) {
+        const parsedSecond = parseDateAndMonto(row[1], filteredData[0][1]);
+        if (parsedSecond) unifiedData.push(parsedSecond);
+      }
+    });
+
+    // Imprime los datos unificados
+    console.log(unifiedData);
   } catch (error) {
     console.error("Error al realizar el scraping:", error);
   } finally {

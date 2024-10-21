@@ -50,6 +50,7 @@
   };
 
   const startCronJobs = async () => {
+    await scrapeFeesDataBsAs()
 
     // Cron que envia mensajes Noticias a Telegram bot no notificados
     cron.schedule(

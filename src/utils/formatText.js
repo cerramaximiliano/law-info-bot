@@ -46,10 +46,43 @@ function getIdArray(objectsArray) {
   return objectsArray.map((obj) => obj._id);
 }
 
+function parseDateAndMonto(cell, type) {
+  const match = cell.match(/A partir del (\d+º? (?:de )?\w+ de \d+): \$ ([\d\.\,\-]+)/);
+  if (match) {
+    const dateParts = match[1].replace('º', '').split(/ de | /);
+    const day = parseInt(dateParts[0], 10);
+    const month = dateParts[1];
+    const year = parseInt(dateParts[2], 10);
+    const months = {
+      'enero': 0,
+      'febrero': 1,
+      'marzo': 2,
+      'abril': 3,
+      'mayo': 4,
+      'junio': 5,
+      'julio': 6,
+      'agosto': 7,
+      'septiembre': 8,
+      'octubre': 9,
+      'noviembre': 10,
+      'diciembre': 11
+    };
+    const date = new Date(year, months[month], day);
+    const monto = parseFloat(match[2].replace(/\./g, '').replace(',', '.'));
+    return {
+      date: date,
+      monto: monto,
+      type: type
+    };
+  }
+  return null;
+}
+
 module.exports = {
   truncateText,
   formatPrice,
   generateTelegramMessage,
   extractMontoAndPeriodo,
   getIdArray,
+  parseDateAndMonto,
 };
