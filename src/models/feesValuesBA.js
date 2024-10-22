@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 
+
 const feesValues = new mongoose.Schema({
   resolucion: String,
   fecha: Date,
@@ -12,5 +13,7 @@ const feesValues = new mongoose.Schema({
   notificationDate: { type: Date, default: null },
 });
 
+
 const FeesValuesBA = mongoose.model("feesValuesBA", feesValues);
+
 module.exports = FeesValuesBA;
