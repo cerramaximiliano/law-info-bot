@@ -1,6 +1,8 @@
 const { logger } = require("../config/logger");
 const FeesModel = require("../models/feesValues");
+const FeesValuesBA = require("../models/feesValuesBA");
 const FeesValuesCaba = require("../models/feesValuesCaba");
+
 const moment = require("moment");
 
 async function saveFeesValuesAfterLastVigencia(data) {
@@ -100,7 +102,9 @@ async function findUnnotifiedFees(Model) {
 async function findLatestFees(Model) {
   try {
     // Primero obtenemos el registro con la fecha más reciente
-    const latestRecord = await Model.findOne({notifiedByTelegram: false}).sort({ fecha: -1 }).exec();
+    const latestRecord = await Model.findOne({ notifiedByTelegram: false })
+      .sort({ fecha: -1 })
+      .exec();
 
     if (!latestRecord) {
       return []; // Si no hay registros, retornamos un array vacío
@@ -118,9 +122,35 @@ async function findLatestFees(Model) {
   }
 }
 
+async function saveNewFeesBA(elementsArray) {
+  try {
+    const bulkOperations = [];
+
+    for (const element of elementsArray) {
+      bulkOperations.push({
+        updateOne: {
+          filter: { vigencia: element.vigencia, type: element.type },
+          update: { $setOnInsert: element },
+          upsert: true, // Si no existe, inserta el documento
+        },
+      });
+    }
+
+    if (bulkOperations.length > 0) {
+      const result = await FeesValuesBA.bulkWrite(bulkOperations);
+      logger.info("Operaciones bulk completadas:", result);
+    } else {
+      logger.info("No hay operaciones para realizar.");
+    }
+  } catch (error) {
+    logger.error("Error al realizar las operaciones bulk:", error);
+  }
+}
+
 module.exports = {
   saveFeesValuesAfterLastVigencia,
   saveFeesValuesAfterLastVigenciaCaba,
   findUnnotifiedFees,
   findLatestFees,
+  saveNewFeesBA,
 };

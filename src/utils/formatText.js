@@ -70,7 +70,8 @@ function parseDateAndMonto(cell, type) {
     const date = new Date(year, months[month], day);
     const monto = parseFloat(match[2].replace(/\./g, '').replace(',', '.'));
     return {
-      date: date,
+      fecha: date,
+      vigencia: date,
       monto: monto,
       type: type
     };

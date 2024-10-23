@@ -24,8 +24,10 @@ const {
 const {
   saveFeesValuesAfterLastVigencia,
   saveFeesValuesAfterLastVigenciaCaba,
+  saveNewFeesBA,
 } = require("../controllers/feesControllers");
 const { parseDateAndMonto } = require("../utils/formatText");
+
 
 const siteDetails = {
   sitekey: process.env.RECAPTCHA_SCRAPE_PAGE_SITE_KEY,
@@ -1038,10 +1040,13 @@ const scrapeFeesDataBsAs = async () => {
         ...item,
         type: newType,
         organization: "Poder Judicial de la provincia de Buenos Aires",
-        periodo: formatPeriod(item.date),
+        periodo: formatPeriod(item.vigencia),
       };
     });
 
+    if ( groupedData.length > 0){
+      await saveNewFeesBA(groupedData)
+    }
     return groupedData;
   } catch (error) {
     logger.error("Error al realizar el scraping:", error);
