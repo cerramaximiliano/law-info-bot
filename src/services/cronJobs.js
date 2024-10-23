@@ -171,7 +171,7 @@ const startCronJobs = async () => {
           logger.info("Hay fees para notitificar");
           const message = generateTelegramMessage(
             "Actualización UMA PJN Ley 27.423",
-            lastFees
+            fees
           );
           const array = extractMontoAndPeriodo(fees);
           const htmlCode = newFeesPosts(array, "2", ["UMA", "Ley Nº 27.423 "]);
@@ -182,7 +182,7 @@ const startCronJobs = async () => {
             "Nuevos valores UMA Ley Nº 27.423 \n#UMA #PoderJudicial #Aranceles #Honorarios\n\n";
           const mediaId = await uploadMedia(image.secure_url, caption);
           await deleteImage(imageId);
-          const ids = getIdArray(lastFees);
+          const ids = getIdArray(fees);
           const notify = await notifyUnnotifiedFees(message, ids, "fees");
         }
         // Notificar fees CABA
@@ -191,8 +191,17 @@ const startCronJobs = async () => {
           logger.info("Hay feesCaba para notitificar");
           const message = generateTelegramMessage(
             "Actualización UMA CABA Ley 5.134",
-            lastFees
+            feesCABA
           );
+          const array = extractMontoAndPeriodo(feesCABA);
+          const htmlCode = newFeesPosts(array, "2", ["UMA CABA", "Ley 5.134"]);
+          const generatedFile = await generateScreenshot(htmlCode);
+          const image = await uploadImage(`./src/files/${generatedFile}`);
+          const imageId = image.public_id;
+          const caption =
+            "Nuevos valores UMA CABA Ley Nº 5.134 \n#UMA #PoderJudicialCABA #Aranceles #Honorarios\n\n";
+          const mediaId = await uploadMedia(image.secure_url, caption);
+          await deleteImage(imageId);
           const ids = getIdArray(lastFees);
           const notify = await notifyUnnotifiedFees(message, ids, "feesCaba");
         }
