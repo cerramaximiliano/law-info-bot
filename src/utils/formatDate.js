@@ -17,4 +17,11 @@ const parseDateFormat = (dateString) => {
   return date.isValid() ? date.toDate() : null; // Convertir a objeto Date o retornar null si la fecha no es válida
 };
 
-module.exports = { parseDate, parseDateFormat };
+function formatPeriod(dateStr) {
+  const months = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+  const date = new Date(dateStr);
+  return `${months[date.getMonth()]}-${date.getFullYear()}`;
+}
+
+
+module.exports = { parseDate, parseDateFormat, formatPeriod };

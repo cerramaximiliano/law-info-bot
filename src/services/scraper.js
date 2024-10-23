@@ -6,7 +6,11 @@ const Courses = require("../models/courses");
 const { saveNewNews } = require("../controllers/notiicasControllers");
 const hashStringToNumber = require("../utils/formatId");
 const { logger } = require("../config/logger");
-const { parseDate, parseDateFormat } = require("../utils/formatDate");
+const {
+  parseDate,
+  parseDateFormat,
+  formatPeriod,
+} = require("../utils/formatDate");
 const moment = require("moment");
 require("moment/locale/es");
 const axios = require("axios");
@@ -1004,7 +1008,6 @@ const scrapeFeesDataBsAs = async () => {
     const filteredData = tableData
       .map((row) => row.filter((cell) => cell !== ""))
       .filter((row) => row.length > 0);
-      console.log(filteredData)
     // Unificar los datos y agregar la propiedad type
     const unifiedData = [];
     filteredData.slice(1).forEach((row) => {
@@ -1018,10 +1021,30 @@ const scrapeFeesDataBsAs = async () => {
       }
     });
 
-    // Imprime los datos unificados
-    console.log(unifiedData);
+    // Group the data by 'type' and add additional properties
+    const groupedData = unifiedData.map((item) => {
+      let newType = "";
+      if (item.type.includes("14.967") || item.type.includes("14967")) {
+        newType = "JUS Ley Nº 14.967";
+      } else if (
+        item.type.includes("8904/77") ||
+        item.type.includes("8904-77") ||
+        item.type.includes("8904")
+      ) {
+        newType = "JUS Dec-Ley Nº 8904/77";
+      }
+
+      return {
+        ...item,
+        type: newType,
+        organization: "Poder Judicial de la provincia de Buenos Aires",
+        periodo: formatPeriod(item.date),
+      };
+    });
+
+    return groupedData;
   } catch (error) {
-    console.error("Error al realizar el scraping:", error);
+    logger.error("Error al realizar el scraping:", error);
   } finally {
     // Cierra el navegador
     if (browser) {
