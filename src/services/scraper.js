@@ -990,7 +990,7 @@ const scrapeFeesDataBsAs = async () => {
     const page = await browser.newPage();
 
     // Navega a la URL especificada
-    await page.goto("https://www.scba.gov.ar/paginas.asp?id=41320", {
+    await page.goto(process.env.FEES_PAGE_4, {
       waitUntil: "domcontentloaded",
     });
 
