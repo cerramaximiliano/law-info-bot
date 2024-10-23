@@ -90,7 +90,7 @@ const startCronJobs = async () => {
   // Cron que hace scraping en Noticias
   cron.schedule(cronSchedules.scrapingNoticias, async () => {
     try {
-      logger.info("Tarea de web scraping iniciada");
+      logger.info("Tarea de web scraping de noticias iniciada");
       await scrapeNoticias();
       await scrapeElDial();
       await scrapeHammurabi();
@@ -123,13 +123,13 @@ const startCronJobs = async () => {
     cronSchedules.scrapingFees,
     async () => {
       try {
-        logger.info("Tarea de web scraping de normas iniciada");
+        logger.info("Tarea de web scraping de fees iniciada");
         await scrapeFeesData();
         await scrapeFeesDataCABA();
         await scrapeFeesDataBsAs();
-        logger.info("Tarea de web scraping de normas finalizada");
+        logger.info("Tarea de web scraping de fees finalizada");
       } catch (err) {
-        logger.error("Error en la tarea de web scraping Saij:", err);
+        logger.error("Error en la tarea de web scraping fees:", err);
       }
     },
     {
