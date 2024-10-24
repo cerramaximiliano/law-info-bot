@@ -12,6 +12,7 @@ const {
   scrapeFeesData,
   scrapeFeesDataCABA,
   scrapeFeesDataBsAs,
+  scrapePrevisional,
 } = require("./scraper");
 const {
   notifyUnnotifiedNews,
@@ -30,11 +31,13 @@ const {
   generateTelegramMessage,
   extractMontoAndPeriodo,
   getIdArray,
+  obtenerHaberes,
 } = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
 const { newFeesPosts } = require("../posts/intagramPosts");
 const { uploadMedia } = require("../controllers/igControllers");
 const { uploadImage, deleteImage } = require("./cloudinaryService");
+const { savePrev } = require("../controllers/prevControllers");
 
 const cronSchedules = {
   notifyNews: "30 10 * * 1-5",
@@ -42,6 +45,7 @@ const cronSchedules = {
   scrapingNoticias: "*/15 * * * *",
   scrapingActs: "0 8 * * 1-5",
   scrapingFees: "10 8 * * 1-5",
+  scrapingPrev: "15 8 * * 1-5",
   scrapingCourses: "0 19 * * 5",
   feesNotificationHours: "0 9 * * 1-5",
   notifyCoursesHours: "0 9 15 * *",
@@ -50,6 +54,21 @@ const cronSchedules = {
 };
 
 const startCronJobs = async () => {
+  let result = await scrapePrevisional();
+  console.log(result);
+  //let saveData = await savePrev(result);
+  //console.log(saveData);
+
+  cron.schedule(
+    cronSchedules.scrapingPrev,
+    async () => {
+      let result = await scrapePrevisional();
+    },
+    {
+      scheduled: true,
+      timezone: "America/Argentina/Buenos_Aires",
+    }
+  );
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(

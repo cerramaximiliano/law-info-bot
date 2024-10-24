@@ -28,7 +28,6 @@ const {
 } = require("../controllers/feesControllers");
 const { parseDateAndMonto } = require("../utils/formatText");
 
-
 const siteDetails = {
   sitekey: process.env.RECAPTCHA_SCRAPE_PAGE_SITE_KEY,
   pageurl: process.env.RECAPTCHA_SCRAPE_PAGE,
@@ -1044,14 +1043,94 @@ const scrapeFeesDataBsAs = async () => {
       };
     });
 
-    if ( groupedData.length > 0){
-      await saveNewFeesBA(groupedData)
+    if (groupedData.length > 0) {
+      await saveNewFeesBA(groupedData);
     }
     return groupedData;
   } catch (error) {
     logger.error("Error al realizar el scraping:", error);
   } finally {
     // Cierra el navegador
+    if (browser) {
+      await browser.close();
+    }
+  }
+};
+
+const scrapePrevisional = async () => {
+  let browser;
+  // Inicia el navegador
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
+    });
+    const page = await browser.newPage();
+    await page.goto(process.env.PREV_PAGE_1);
+
+    const resultados = await page.evaluate(() => {
+      const filas = Array.from(document.querySelectorAll('table tbody tr'));
+      const resultados = [];
+  
+      filas.forEach(fila => {
+        const celdas = fila.querySelectorAll('td');
+        if (celdas.length === 3) {
+          const descripcion = celdas[2].innerText;
+          let fecha = celdas[1].innerText.trim();
+          const linkElement = celdas[0].querySelector('a');
+          let link = linkElement ? linkElement.getAttribute('href') : null;
+          const norma = linkElement ? linkElement.innerText.trim() : null;
+
+          // Asegurarse de que el link sea absoluto y eliminar jsessionid
+          if (link) {
+            link = new URL(link, window.location.origin).href;
+            link = link.replace(/;jsessionid=[^?]+/i, '');
+          }
+
+          const contienePrincipal = descripcion.includes("ADMINISTRACION NACIONAL DE LA SEGURIDAD SOCIAL");
+          const contieneAlternativo = [
+            "HABERES MINIMO Y MAXIMO",
+            "BASES IMPONIBLES",
+            "PRESTACION BASICA UNIVERSAL",
+            "PENSION UNIVERSAL",
+            "HABERES",
+            "HABER MINIMO"
+          ].some(keyword => descripcion.includes(keyword));
+  
+          if (contienePrincipal && contieneAlternativo) {
+            resultados.push({
+              fecha,
+              descripcion,
+              link,
+              norma
+            });
+          }
+        }
+      });
+      return resultados;
+    });
+  
+    // Convertir las fechas al formato ISO utilizando moment.js
+    const resultadosConFechaISO = resultados.map(resultado => {
+      const fechaISO = moment(resultado.fecha, 'DD-MMM-YYYY', 'es').format('YYYY-MM-DD');
+      return {
+        ...resultado,
+        fecha: fechaISO
+      };
+    });
+    return resultadosConFechaISO;
+
+  } catch (error) {
+    logger.error("Error al realizar el scraping previsional:", error);
+  } finally {
     if (browser) {
       await browser.close();
     }
@@ -1071,4 +1150,5 @@ module.exports = {
   scrapeFeesData,
   scrapeFeesDataCABA,
   scrapeFeesDataBsAs,
+  scrapePrevisional,
 };
