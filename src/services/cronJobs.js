@@ -36,13 +36,17 @@ const {
 } = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
 const { newFeesPosts, prevPost } = require("../posts/intagramPosts");
-const { uploadMedia } = require("../controllers/igControllers");
+const {
+  uploadMedia,
+  uploadCarouselMedia,
+} = require("../controllers/igControllers");
 const { uploadImage, deleteImage } = require("./cloudinaryService");
 const {
   savePrev,
   findUnscrapedPrev,
   findByIdAndUpdateScrapedAndData,
 } = require("../controllers/prevControllers");
+const { cleanDirectory } = require("../utils/manageFiles");
 
 const cronSchedules = {
   notifyNews: "30 10 * * 1-5",
@@ -56,11 +60,10 @@ const cronSchedules = {
   feesNotificationHours: "0 9 * * 1-5",
   notifyCoursesHours: "0 9 15 * *",
   notifyNewCoursesHours: "0 9 16 * *",
-  cleanLogsHours: "0 0 */7 * *",
+  cleanLogsHours: "0 0 15,30 * *",
 };
 
 const startCronJobs = async () => {
-  
   // Cron que hace scraping sobre datos previsionales
   cron.schedule(
     cronSchedules.scrapingPrev,
@@ -80,7 +83,7 @@ const startCronJobs = async () => {
       timezone: "America/Argentina/Buenos_Aires",
     }
   );
-  // Cron que notifica datos previsionales
+  // Cron que notifica datos previsionales por IG
   cron.schedule(
     cronSchedules.notifyPrev,
     async () => {
@@ -88,7 +91,36 @@ const startCronJobs = async () => {
         let results = await findUnscrapedPrev();
         if (results.length > 0) {
           const resultsData = await scrapePrevisionalLink(results[0].link);
-          console.log(resultsData);
+          logger.info(
+            `Tarea de scraping de link previsional. ID: ${results[0]._id}`
+          );
+          await findByIdAndUpdateScrapedAndData(results[0]._id, resultsData);
+          if (resultsData && resultsData.length > 0) {
+            let imageIds = [];
+            let imageUrls = [];
+
+            for (const [index, element] of resultsData.entries()) {
+              const htmlCode = prevPost(element);
+              try {
+                const generatedFile = await generateScreenshot(htmlCode);
+                const image = await uploadImage(`./src/files/${generatedFile}`);
+                const imageId = image.public_id;
+
+                imageIds.push(imageId);
+                imageUrls.push(image.secure_url);
+              } catch (error) {
+                logger.error(
+                  `Error procesando el elemento en el índice ${index}:`,
+                  error
+                );
+              }
+            }
+            if (imageIds.length > 0 && imageUrls.length > 0) {
+            }
+            const caption =
+              "Actualización previsional ANSES\n #ANSES #Ley24241 #jubilaciones #pensiones #pbu #puam\n\n";
+            await uploadCarouselMedia(imageUrls, caption);
+          }
         }
       } catch (error) {
         logger.error(
@@ -317,6 +349,7 @@ const startCronJobs = async () => {
   cron.schedule(cronSchedules.cleanLogsHours, () => {
     logger.log("Se ejecuta limpieza de logs");
     clearLogs();
+    cleanDirectory("./src/files");
   });
 };
 

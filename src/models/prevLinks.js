@@ -6,7 +6,14 @@ const prevSchema = new mongoose.Schema({
   link: { type: String, required: true, unique: true },
   norma: { type: String, required: true, unique: true },
   scraped: { type: Boolean, default: false },
-  data: [String],
+  data: [
+    {
+      tipo: String,
+      importe: String,
+      order: Number,
+      fecha: String,
+    },
+  ],
   notifiedByTelegram: { type: Boolean, default: false }, // Indica si fue notificado por el bot de Telegram
   notifiedByWhatsApp: { type: Boolean, default: false },
   postIG: { type: Boolean, default: false },
