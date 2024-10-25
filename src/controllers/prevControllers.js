@@ -25,6 +25,35 @@ async function savePrev(resultados) {
   }
 }
 
+const findUnscrapedPrev = async () => {
+  try {
+    const results = await PrevLinks.find({ scraped: false }).sort({ fecha: 1 });
+    logger.info(
+      `Se encontraron ${results.length} links previsionales no scrapeados`
+    );
+    return results;
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+const findByIdAndUpdateScrapedAndData = async (id, newData) => {
+  try {
+    await PrevLinks.findByIdAndUpdate(id, {
+      scraped: true,
+      notifiedByTelegram: false,
+      notifiedByWhatsApp: false,
+      postIG: false,
+      $push: { data: { $each: newData } },
+    });
+    console.log(`Documento con ID ${id} actualizado correctamente.`);
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
 module.exports = {
   savePrev,
+  findUnscrapedPrev,
+  findByIdAndUpdateScrapedAndData,
 };

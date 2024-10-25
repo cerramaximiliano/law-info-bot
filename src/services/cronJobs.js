@@ -13,6 +13,7 @@ const {
   scrapeFeesDataCABA,
   scrapeFeesDataBsAs,
   scrapePrevisional,
+  scrapePrevisionalLink,
 } = require("./scraper");
 const {
   notifyUnnotifiedNews,
@@ -37,7 +38,11 @@ const { generateScreenshot } = require("../utils/generateImages");
 const { newFeesPosts } = require("../posts/intagramPosts");
 const { uploadMedia } = require("../controllers/igControllers");
 const { uploadImage, deleteImage } = require("./cloudinaryService");
-const { savePrev } = require("../controllers/prevControllers");
+const {
+  savePrev,
+  findUnscrapedPrev,
+  findByIdAndUpdateScrapedAndData,
+} = require("../controllers/prevControllers");
 
 const cronSchedules = {
   notifyNews: "30 10 * * 1-5",
@@ -46,6 +51,7 @@ const cronSchedules = {
   scrapingActs: "0 8 * * 1-5",
   scrapingFees: "10 8 * * 1-5",
   scrapingPrev: "15 8 * * 1-5",
+  notifyPrev: "15 9 * * 1-5",
   scrapingCourses: "0 19 * * 5",
   feesNotificationHours: "0 9 * * 1-5",
   notifyCoursesHours: "0 9 15 * *",
@@ -54,21 +60,47 @@ const cronSchedules = {
 };
 
 const startCronJobs = async () => {
-  let result = await scrapePrevisional();
-  console.log(result);
-  //let saveData = await savePrev(result);
-  //console.log(saveData);
-
+  
+  
+  // Cron que hace scraping sobre datos previsionales
   cron.schedule(
     cronSchedules.scrapingPrev,
     async () => {
-      let result = await scrapePrevisional();
+      logger.info("Tarea de scraping previsional iniciado");
+      try{
+        let result = await scrapePrevisional();
+        let saveData = await savePrev(result);
+  
+      }catch(error){
+        logger.error(`Error al realizar tarea de scraping previsional: ${error}`)
+      }
+
     },
     {
       scheduled: true,
       timezone: "America/Argentina/Buenos_Aires",
     }
   );
+  // Cron que notifica datos previsionales
+  cron.schedule(
+    cronSchedules.notifyPrev,
+    async () => {
+      try{
+        let results = await findUnscrapedPrev();
+        if (results.length > 0){
+          const resultsData = await scrapePrevisionalLink(results[0].link)
+          console.log(resultsData)
+        }     
+      }catch(error){
+        logger.error(`Error al realizar tarea de notificación previsional: ${error}`)
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "America/Argentina/Buenos_Aires",
+    }
+  )
+
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(

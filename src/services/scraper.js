@@ -27,6 +27,7 @@ const {
   saveNewFeesBA,
 } = require("../controllers/feesControllers");
 const { parseDateAndMonto } = require("../utils/formatText");
+const { extractArticles } = require("../utils/findData");
 
 const siteDetails = {
   sitekey: process.env.RECAPTCHA_SCRAPE_PAGE_SITE_KEY,
@@ -1048,7 +1049,7 @@ const scrapeFeesDataBsAs = async () => {
     }
     return groupedData;
   } catch (error) {
-    logger.error("Error al realizar el scraping:", error);
+    logger.error("Error al realizar el scraping Fees BA:", error);
   } finally {
     // Cierra el navegador
     if (browser) {
@@ -1074,62 +1075,68 @@ const scrapePrevisional = async () => {
       ],
     });
     const page = await browser.newPage();
-    await page.goto(process.env.PREV_PAGE_1);
+    await page.goto(process.env.PREV_PAGE_1, {
+      waitUntil: "domcontentloaded",
+    });
 
     const resultados = await page.evaluate(() => {
-      const filas = Array.from(document.querySelectorAll('table tbody tr'));
+      const filas = Array.from(document.querySelectorAll("table tbody tr"));
       const resultados = [];
-  
-      filas.forEach(fila => {
-        const celdas = fila.querySelectorAll('td');
+
+      filas.forEach((fila) => {
+        const celdas = fila.querySelectorAll("td");
         if (celdas.length === 3) {
-          const descripcion = celdas[2].innerText;
+          let descripcion = celdas[2].innerText.trim().replace(/\n/g, " - ");
           let fecha = celdas[1].innerText.trim();
-          const linkElement = celdas[0].querySelector('a');
-          let link = linkElement ? linkElement.getAttribute('href') : null;
+          const linkElement = celdas[0].querySelector("a");
+          let link = linkElement ? linkElement.getAttribute("href") : null;
           const norma = linkElement ? linkElement.innerText.trim() : null;
 
           // Asegurarse de que el link sea absoluto y eliminar jsessionid
           if (link) {
             link = new URL(link, window.location.origin).href;
-            link = link.replace(/;jsessionid=[^?]+/i, '');
+            link = link.replace(/;jsessionid=[^?]+/i, "");
           }
 
-          const contienePrincipal = descripcion.includes("ADMINISTRACION NACIONAL DE LA SEGURIDAD SOCIAL");
+          const contienePrincipal = descripcion.includes(
+            "ADMINISTRACION NACIONAL DE LA SEGURIDAD SOCIAL"
+          );
           const contieneAlternativo = [
             "HABERES MINIMO Y MAXIMO",
             "BASES IMPONIBLES",
             "PRESTACION BASICA UNIVERSAL",
             "PENSION UNIVERSAL",
             "HABERES",
-            "HABER MINIMO"
-          ].some(keyword => descripcion.includes(keyword));
-  
+            "HABER MINIMO",
+          ].some((keyword) => descripcion.includes(keyword));
+
           if (contienePrincipal && contieneAlternativo) {
             resultados.push({
               fecha,
               descripcion,
               link,
-              norma
+              norma,
             });
           }
         }
       });
       return resultados;
     });
-  
+
     // Convertir las fechas al formato ISO utilizando moment.js
-    const resultadosConFechaISO = resultados.map(resultado => {
-      const fechaISO = moment(resultado.fecha, 'DD-MMM-YYYY', 'es').format('YYYY-MM-DD');
+    const resultadosConFechaISO = resultados.map((resultado) => {
+      const fechaISO = moment(resultado.fecha, "DD-MMM-YYYY", "es").format(
+        "YYYY-MM-DD"
+      );
       return {
         ...resultado,
-        fecha: fechaISO
+        fecha: fechaISO,
       };
     });
     return resultadosConFechaISO;
-
   } catch (error) {
     logger.error("Error al realizar el scraping previsional:", error);
+    throw Error(error);
   } finally {
     if (browser) {
       await browser.close();
@@ -1137,6 +1144,95 @@ const scrapePrevisional = async () => {
   }
 };
 
+const scrapePrevisionalLink = async (link) => {
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
+    });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 800 }); // Ampliar la visión del navegador
+    await page.goto(link, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector("a");
+    await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll("a"));
+      const targetLink = links.find(
+        (link) => link.textContent.trim() === "Texto completo de la norma"
+      );
+      if (targetLink) {
+        targetLink.click();
+      }
+    });
+    await page.waitForNavigation({ waitUntil: "domcontentloaded" });
+    await page.waitForSelector("body"); // Asegurarse de que el contenido del cuerpo esté cargado
+
+    // Obtener el contenido HTML completo
+    const html = await page.content();
+
+    // Usar una expresión regular para encontrar los textos que comienzan con 'ARTÍCULO'
+    const articles = [];
+    const regex = /ARTÍCULO\s+\d+.*?(?=<br\s*\/?>|$)/gs;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+      // Limpiar el contenido HTML eliminando etiquetas y saltos de línea
+      const cleanedText = match[0]
+        .replace(/<br\s*\/?>/gi, " ") // Reemplazar <br> por espacio
+        .replace(/\n/g, " ") // Reemplazar saltos de línea por espacio
+        .replace(/<[^>]*>/g, "") // Eliminar cualquier otra etiqueta HTML
+        .trim();
+      articles.push(cleanedText);
+    }
+
+    // Verificar si se encuentran elementos con el contenido deseado
+    if (articles.length === 0) {
+      console.warn(
+        "No se encontraron elementos que comiencen con 'ARTÍCULO'. Verificar la estructura del DOM."
+      );
+    }
+
+    // Extraer los datos específicos de cada artículo
+    const extractedData = articles
+      .map((article) => {
+        const tipoMatch = article.match(
+          /haber mínimo|haber máximo|prestación básica universal|pensión universal para el adulto mayor/i
+        );
+        if (!tipoMatch) return null;
+
+        let tipo = tipoMatch[0]
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+        const fechaMatch = article.match(
+          /(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) de \d{4}/i
+        );
+        const importeMatch = article.match(/\$\s?\d{1,3}(?:\.\d{3})*,\d{2}/);
+
+        return {
+          tipo: tipo,
+          fecha: fechaMatch ? fechaMatch[0] : "No especificada",
+          importe: importeMatch ? importeMatch[0] : "No especificado",
+        };
+      })
+      .filter((data) => data !== null);
+
+    return extractedData;
+  } catch (error) {
+    console.error(`Error al obtener datos previsionales: ${error}`);
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+};
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,
@@ -1151,4 +1247,5 @@ module.exports = {
   scrapeFeesDataCABA,
   scrapeFeesDataBsAs,
   scrapePrevisional,
+  scrapePrevisionalLink,
 };
