@@ -35,7 +35,7 @@ const {
   obtenerHaberes,
 } = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
-const { newFeesPosts } = require("../posts/intagramPosts");
+const { newFeesPosts, prevPost } = require("../posts/intagramPosts");
 const { uploadMedia } = require("../controllers/igControllers");
 const { uploadImage, deleteImage } = require("./cloudinaryService");
 const {
@@ -61,20 +61,19 @@ const cronSchedules = {
 
 const startCronJobs = async () => {
   
-  
   // Cron que hace scraping sobre datos previsionales
   cron.schedule(
     cronSchedules.scrapingPrev,
     async () => {
       logger.info("Tarea de scraping previsional iniciado");
-      try{
+      try {
         let result = await scrapePrevisional();
         let saveData = await savePrev(result);
-  
-      }catch(error){
-        logger.error(`Error al realizar tarea de scraping previsional: ${error}`)
+      } catch (error) {
+        logger.error(
+          `Error al realizar tarea de scraping previsional: ${error}`
+        );
       }
-
     },
     {
       scheduled: true,
@@ -85,22 +84,23 @@ const startCronJobs = async () => {
   cron.schedule(
     cronSchedules.notifyPrev,
     async () => {
-      try{
+      try {
         let results = await findUnscrapedPrev();
-        if (results.length > 0){
-          const resultsData = await scrapePrevisionalLink(results[0].link)
-          console.log(resultsData)
-        }     
-      }catch(error){
-        logger.error(`Error al realizar tarea de notificación previsional: ${error}`)
+        if (results.length > 0) {
+          const resultsData = await scrapePrevisionalLink(results[0].link);
+          console.log(resultsData);
+        }
+      } catch (error) {
+        logger.error(
+          `Error al realizar tarea de notificación previsional: ${error}`
+        );
       }
     },
     {
       scheduled: true,
       timezone: "America/Argentina/Buenos_Aires",
     }
-  )
-
+  );
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(

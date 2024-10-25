@@ -1194,23 +1194,25 @@ const scrapePrevisionalLink = async (link) => {
 
     // Verificar si se encuentran elementos con el contenido deseado
     if (articles.length === 0) {
-      console.warn(
+      logger.error(
         "No se encontraron elementos que comiencen con 'ARTÍCULO'. Verificar la estructura del DOM."
       );
     }
 
     // Extraer los datos específicos de cada artículo
     const extractedData = articles
-      .map((article) => {
+      .map((article, index) => {
         const tipoMatch = article.match(
           /haber mínimo|haber máximo|prestación básica universal|pensión universal para el adulto mayor/i
         );
         if (!tipoMatch) return null;
 
         let tipo = tipoMatch[0]
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join(' ');
+          .split(" ")
+          .map(
+            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          )
+          .join(" ");
         const fechaMatch = article.match(
           /(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) de \d{4}/i
         );
@@ -1220,13 +1222,42 @@ const scrapePrevisionalLink = async (link) => {
           tipo: tipo,
           fecha: fechaMatch ? fechaMatch[0] : "No especificada",
           importe: importeMatch ? importeMatch[0] : "No especificado",
+          order: index + 1,
         };
       })
       .filter((data) => data !== null);
 
+    // Buscar párrafos que contengan la palabra 'movilidad' y un porcentaje
+    const mobilityData = await page.evaluate(() => {
+      const paragraphs = Array.from(document.querySelectorAll("p, div, span"));
+      const mobilityParagraph = paragraphs.find((p) => {
+        const text = p.textContent;
+        return text.includes("movilidad") && /\d+[.,]\d+\s?%/.test(text);
+      });
+      if (mobilityParagraph) {
+        let percentageMatch =
+          mobilityParagraph.textContent.match(/\d+[.,]\d+\s?%/);
+        let result = percentageMatch
+          ? percentageMatch[0]
+          : null;
+        return {
+          tipo: "Aumento General",
+          importe: result,
+          order: 0,
+        };
+      }
+      return null;
+    });
+
+    if (mobilityData && mobilityData.importe) {
+      mobilityData.fecha = extractedData[0].fecha;
+      extractedData.push(mobilityData);
+    }
+    const data = extractedData.sort((a, b) => a.order - b.order);
     return extractedData;
   } catch (error) {
-    console.error(`Error al obtener datos previsionales: ${error}`);
+    logger.error(`Error al obtener datos previsionales: ${error}`);
+    throw new Error(error);
   } finally {
     if (browser) {
       await browser.close();

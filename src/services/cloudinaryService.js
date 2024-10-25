@@ -17,6 +17,7 @@ const uploadImage = async (imagePath, folder = "default_folder") => {
     logger.info(`URL de la imagen: ${result.secure_url}`);
     return result;
   } catch (error) {
+    console.log(error)
     logger.error("Error al subir la imagen:", error);
     throw new Error("Error al subir la imagen");
   }

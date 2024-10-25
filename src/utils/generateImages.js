@@ -11,7 +11,7 @@ let browser;
 async function generateScreenshot(html) {
   try {
     browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       args: [
         "--no-sandbox",
         "--start-maximized",
@@ -48,7 +48,7 @@ async function generateScreenshot(html) {
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
-    delay(5000)
+    delay(8000)
     // Captura solo el contenido del nodo "container"
     await element.screenshot({
       path: screenshotPath,
