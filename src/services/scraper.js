@@ -27,7 +27,6 @@ const {
   saveNewFeesBA,
 } = require("../controllers/feesControllers");
 const { parseDateAndMonto } = require("../utils/formatText");
-const { extractArticles } = require("../utils/findData");
 
 const siteDetails = {
   sitekey: process.env.RECAPTCHA_SCRAPE_PAGE_SITE_KEY,
@@ -1264,6 +1263,7 @@ const scrapePrevisionalLink = async (link) => {
     }
   }
 };
+
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,
