@@ -1,7 +1,7 @@
 const { logger } = require("../config/logger");
-const PrevLinks = require("../models/prevLinks");
+const LegalLinks = require("../models/legalLinks");
 
-async function savePrev(resultados) {
+async function saveLegalLinks(resultados) {
   const operacionesBulk = resultados.map((resultado) => {
     return {
       updateOne: {
@@ -13,24 +13,24 @@ async function savePrev(resultados) {
   });
 
   try {
-    const result = await PrevLinks.bulkWrite(operacionesBulk);
-    logger.info("Operaciones bulk ejecutadas:", result);
+    const result = await LegalLinks.bulkWrite(operacionesBulk);
+    logger.info(`Operaciones LEGAL links bulk ejecutadas: ${result.nInserted}`);
     return result;
   } catch (error) {
     logger.error(
-      "Error al realizar las operaciones bulk en la base de datos:",
+      "Error al realizar las operaciones bulk en la base de datos LEGAL:",
       error
     );
     throw new Error(error);
   }
 }
 
-const findUnscrapedPrev = async () => {
+const findUnscrapedLegal = async (type) => {
   try {
-    const results = await PrevLinks.find({ scraped: false }).sort({ fecha: 1 });
-    logger.info(
-      `Se encontraron ${results.length} links previsionales no scrapeados`
-    );
+    const results = await LegalLinks.find({ type, scraped: false }).sort({
+      fecha: 1,
+    });
+    logger.info(`Se encontraron ${results.length} LEGAL links ${type} no scrapeados`);
     return results;
   } catch (error) {
     throw new Error(error);
@@ -39,21 +39,21 @@ const findUnscrapedPrev = async () => {
 
 const findByIdAndUpdateScrapedAndData = async (id, newData) => {
   try {
-    await PrevLinks.findByIdAndUpdate(id, {
+    await LegalLinks.findByIdAndUpdate(id, {
       scraped: true,
       notifiedByTelegram: false,
       notifiedByWhatsApp: false,
       postIG: false,
       $push: { data: { $each: newData } },
     });
-    console.log(`Documento con ID ${id} actualizado correctamente.`);
+    logger.log(`Documento LEGAL con ID ${id} actualizado correctamente.`);
   } catch (error) {
     throw new Error(error);
   }
 };
 
 module.exports = {
-  savePrev,
-  findUnscrapedPrev,
+  saveLegalLinks,
+  findUnscrapedLegal,
   findByIdAndUpdateScrapedAndData,
 };

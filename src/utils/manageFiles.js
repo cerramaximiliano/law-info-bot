@@ -1,4 +1,5 @@
 const fs = require("fs").promises;
+const fss = require("fs");
 const path = require("path");
 const { logger } = require("../config/logger");
 
@@ -20,4 +21,14 @@ const cleanDirectory = async (directoryPath) => {
   }
 };
 
-module.exports = { cleanDirectory };
+const loadFile = (filePath) => {
+  try {
+    const data = fss.readFileSync(filePath, "utf8");
+    return data;
+  } catch (err) {
+    logger.error("Error leyendo el archivo: ", err);
+    return null;
+  }
+};
+
+module.exports = { cleanDirectory, loadFile };

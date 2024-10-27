@@ -1,11 +1,12 @@
 const mongoose = require("mongoose");
 
-const prevSchema = new mongoose.Schema({
+const legalSchema = new mongoose.Schema({
   fecha: { type: Date, required: true },
   descripcion: { type: String, required: true },
   link: { type: String, required: true, unique: true },
   norma: { type: String, required: true, unique: true },
   scraped: { type: Boolean, default: false },
+  type: { type: String, required: true },
   data: [
     {
       tipo: String,
@@ -20,6 +21,6 @@ const prevSchema = new mongoose.Schema({
   notificationDate: { type: Date, default: null },
 });
 
-const PrevLinks = mongoose.model("Prev", prevSchema);
+const LegalLinks = mongoose.model("Legal", legalSchema);
 
-module.exports = PrevLinks;
+module.exports = LegalLinks;

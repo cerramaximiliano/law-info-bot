@@ -1057,7 +1057,7 @@ const scrapeFeesDataBsAs = async () => {
   }
 };
 
-const scrapePrevisional = async () => {
+const scrapeLegalPage = async (urlPage, include, alternatives, type) => {
   let browser;
   // Inicia el navegador
   try {
@@ -1074,53 +1074,50 @@ const scrapePrevisional = async () => {
       ],
     });
     const page = await browser.newPage();
-    await page.goto(process.env.PREV_PAGE_1, {
+    await page.goto(urlPage, {
       waitUntil: "domcontentloaded",
     });
 
-    const resultados = await page.evaluate(() => {
-      const filas = Array.from(document.querySelectorAll("table tbody tr"));
-      const resultados = [];
+    const resultados = await page.evaluate(
+      (include, alternatives) => {
+        const filas = Array.from(document.querySelectorAll("table tbody tr"));
+        const resultados = [];
 
-      filas.forEach((fila) => {
-        const celdas = fila.querySelectorAll("td");
-        if (celdas.length === 3) {
-          let descripcion = celdas[2].innerText.trim().replace(/\n/g, " - ");
-          let fecha = celdas[1].innerText.trim();
-          const linkElement = celdas[0].querySelector("a");
-          let link = linkElement ? linkElement.getAttribute("href") : null;
-          const norma = linkElement ? linkElement.innerText.trim() : null;
+        filas.forEach((fila) => {
+          const celdas = fila.querySelectorAll("td");
+          if (celdas.length === 3) {
+            let descripcion = celdas[2].innerText.trim().replace(/\n/g, " - ");
+            let fecha = celdas[1].innerText.trim();
+            const linkElement = celdas[0].querySelector("a");
+            let link = linkElement ? linkElement.getAttribute("href") : null;
+            const norma = linkElement ? linkElement.innerText.trim() : null;
 
-          // Asegurarse de que el link sea absoluto y eliminar jsessionid
-          if (link) {
-            link = new URL(link, window.location.origin).href;
-            link = link.replace(/;jsessionid=[^?]+/i, "");
+            // Asegurarse de que el link sea absoluto y eliminar jsessionid
+            if (link) {
+              link = new URL(link, window.location.origin).href;
+              link = link.replace(/;jsessionid=[^?]+/i, "");
+            }
+
+            const contienePrincipal = descripcion.includes(include);
+            const contieneAlternativo = alternatives.some((keyword) =>
+              descripcion.includes(keyword)
+            );
+
+            if (contienePrincipal && contieneAlternativo) {
+              resultados.push({
+                fecha,
+                descripcion,
+                link,
+                norma,
+              });
+            }
           }
-
-          const contienePrincipal = descripcion.includes(
-            "ADMINISTRACION NACIONAL DE LA SEGURIDAD SOCIAL"
-          );
-          const contieneAlternativo = [
-            "HABERES MINIMO Y MAXIMO",
-            "BASES IMPONIBLES",
-            "PRESTACION BASICA UNIVERSAL",
-            "PENSION UNIVERSAL",
-            "HABERES",
-            "HABER MINIMO",
-          ].some((keyword) => descripcion.includes(keyword));
-
-          if (contienePrincipal && contieneAlternativo) {
-            resultados.push({
-              fecha,
-              descripcion,
-              link,
-              norma,
-            });
-          }
-        }
-      });
-      return resultados;
-    });
+        });
+        return resultados;
+      },
+      include,
+      alternatives
+    );
 
     // Convertir las fechas al formato ISO utilizando moment.js
     const resultadosConFechaISO = resultados.map((resultado) => {
@@ -1130,11 +1127,12 @@ const scrapePrevisional = async () => {
       return {
         ...resultado,
         fecha: fechaISO,
+        type
       };
     });
     return resultadosConFechaISO;
   } catch (error) {
-    logger.error("Error al realizar el scraping previsional:", error);
+    logger.error("Error al realizar el scraping legal:", error);
     throw Error(error);
   } finally {
     if (browser) {
@@ -1197,7 +1195,7 @@ const scrapePrevisionalLink = async (link) => {
         "No se encontraron elementos que comiencen con 'ARTÍCULO'. Verificar la estructura del DOM."
       );
     }
-
+    console.log(articles)
     // Extraer los datos específicos de cada artículo
     const extractedData = articles
       .map((article, index) => {
@@ -1236,9 +1234,7 @@ const scrapePrevisionalLink = async (link) => {
       if (mobilityParagraph) {
         let percentageMatch =
           mobilityParagraph.textContent.match(/\d+[.,]\d+\s?%/);
-        let result = percentageMatch
-          ? percentageMatch[0]
-          : null;
+        let result = percentageMatch ? percentageMatch[0] : null;
         return {
           tipo: "Aumento General",
           importe: result,
@@ -1264,6 +1260,17 @@ const scrapePrevisionalLink = async (link) => {
   }
 };
 
+const scrapeDomesticosLink = async () => {
+  try {
+  } catch (error) {
+    throw new Error(error);
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+};
+
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,
@@ -1277,6 +1284,6 @@ module.exports = {
   scrapeFeesData,
   scrapeFeesDataCABA,
   scrapeFeesDataBsAs,
-  scrapePrevisional,
+  scrapeLegalPage,
   scrapePrevisionalLink,
 };

@@ -1,5 +1,6 @@
 const cron = require("node-cron");
 const axios = require("axios");
+
 const {
   scrapeNoticias,
   scrapeSaij,
@@ -12,7 +13,7 @@ const {
   scrapeFeesData,
   scrapeFeesDataCABA,
   scrapeFeesDataBsAs,
-  scrapePrevisional,
+  scrapeLegalPage,
   scrapePrevisionalLink,
 } = require("./scraper");
 const {
@@ -32,7 +33,6 @@ const {
   generateTelegramMessage,
   extractMontoAndPeriodo,
   getIdArray,
-  obtenerHaberes,
 } = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
 const { newFeesPosts, prevPost } = require("../posts/intagramPosts");
@@ -42,19 +42,23 @@ const {
 } = require("../controllers/igControllers");
 const { uploadImage, deleteImage } = require("./cloudinaryService");
 const {
-  savePrev,
-  findUnscrapedPrev,
+  saveLegalLinks,
+  findUnscrapedLegal,
   findByIdAndUpdateScrapedAndData,
-} = require("../controllers/prevControllers");
+} = require("../controllers/legalControllers");
 const { cleanDirectory } = require("../utils/manageFiles");
+const { extractData, iterateTextByLine } = require("../utils/readFile");
+const { askQuestion } = require("./chatgpt");
+const moment = require("moment");
+const { text } = require("../files/legales/text");
 
 const cronSchedules = {
   notifyNews: "30 10 * * 1-5",
   notifyNewsHours: "30 12 * * 1-5",
-  scrapingNoticias: "*/15 * * * *",
+  scrapingNoticias: "*/15 8-18 * * 1-5",
   scrapingActs: "0 8 * * 1-5",
   scrapingFees: "10 8 * * 1-5",
-  scrapingPrev: "15 8 * * 1-5",
+  scrapingLegal: "15 8 * * 1-5",
   notifyPrev: "15 9 * * 1-5",
   scrapingCourses: "0 19 * * 5",
   feesNotificationHours: "0 9 * * 1-5",
@@ -66,16 +70,37 @@ const cronSchedules = {
 const startCronJobs = async () => {
   // Cron que hace scraping sobre datos previsionales
   cron.schedule(
-    cronSchedules.scrapingPrev,
+    cronSchedules.scrapingLegal,
     async () => {
-      logger.info("Tarea de scraping previsional iniciado");
+      logger.info("Tarea de scraping de leyes iniciado");
       try {
-        let result = await scrapePrevisional();
-        let saveData = await savePrev(result);
-      } catch (error) {
-        logger.error(
-          `Error al realizar tarea de scraping previsional: ${error}`
+        let resultPrevisional = await scrapeLegalPage(
+          process.env.PREV_PAGE_1,
+          "ADMINISTRACION NACIONAL DE LA SEGURIDAD SOCIAL",
+          [
+            "HABERES MINIMO Y MAXIMO",
+            "BASES IMPONIBLES",
+            "PRESTACION BASICA UNIVERSAL",
+            "PENSION UNIVERSAL",
+            "HABERES",
+            "HABER MINIMO",
+          ],
+          "previsional- aumentos"
         );
+        let savePrevisionalData = await saveLegalLinks(resultPrevisional);
+
+        let resultLaboralDomestico = await scrapeLegalPage(
+          process.env.LABORAL_PAGE_1,
+          ["COMISION NACIONAL DE TRABAJO EN CASAS PARTICULARES"],
+          ["REMUNERACIONES", "INCREMENTO"],
+          "laboral- servicio doméstico"
+        );
+
+        let saveLaboralDomesticoData = await saveLegalLinks(
+          resultLaboralDomestico
+        );
+      } catch (error) {
+        logger.error(`Error al realizar tarea de scraping de leyes: ${error}`);
       }
     },
     {
@@ -88,7 +113,7 @@ const startCronJobs = async () => {
     cronSchedules.notifyPrev,
     async () => {
       try {
-        let results = await findUnscrapedPrev();
+        let results = await findUnscrapedLegal("previsional- aumentos");
         if (results.length > 0) {
           const resultsData = await scrapePrevisionalLink(results[0].link);
           logger.info(
