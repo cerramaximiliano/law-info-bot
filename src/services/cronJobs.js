@@ -69,6 +69,64 @@ const cronSchedules = {
 
 const startCronJobs = async () => {
   // Cron que hace scraping sobre datos previsionales
+
+  /*   let resultLaboralDomestico = await scrapeLegalPage(
+    process.env.LABORAL_PAGE_1,
+    ["COMISION NACIONAL DE TRABAJO EN CASAS PARTICULARES"],
+    ["REMUNERACIONES", "INCREMENTO"],
+    "laboral- servicio doméstico"
+  );
+
+  let saveLaboralDomesticoData = await saveLegalLinks(resultLaboralDomestico);
+
+  let results = await findUnscrapedLegal("laboral- servicio doméstico");
+  console.log(results);
+  if (results.length > 0) {
+    let last = results.length - 1;
+    const resultsData = await scrapePrevisionalLink(results[last].link);
+    logger.info(
+      `Tarea de scraping de link laboral-servicio doméstico. ID: ${results[last]._id}`
+    );
+    console.log(resultsData);
+  } */
+
+  //const results = await extractData("./src/files/legales/res1.pdf");
+  //console.log(results);
+
+  //const resultsExtracts = iterateTextByLine(results);
+  //console.log(resultsExtracts);
+
+  /*   const answerGPT = await askQuestion(
+    `"${results}"; A partir de este texto necesito que extraigas las tablas que contiene el mismo en un array de objetos con las propiedades "categoria" ("SUPERVISOR/A", "PERSONAL PARA TAREAS ESPECÍFICAS", "CASEROS" y "ASISTENCIA Y CUIDADO DE PERSONAS") y "tipo" ("PERSONAL CON RETIRO" o "PERSONAL SIN RETIRO"), "fecha" y valores de "hora" y "mensual", dandonme en la respuesta únicamente el array.`
+  );
+  if (answerGPT && answerGPT.choices && answerGPT.choices.length > 0) {
+    let content = answerGPT.choices[0].message.content;
+    console.log(content);
+    let rawText = content
+      .replace(/^```json/, "")
+      .replace(/```$/, "")
+      .trim();
+    let array = JSON.parse(rawText);
+    const filteredData = array
+      .filter(
+        (item) =>
+          !(item.categoria === "CASEROS" && item.tipo === "PERSONAL SIN RETIRO")
+      ) // Filtrar categoría y tipo indeseados
+      .map((item) => {
+        // Convertir la fecha en formato ISO usando Moment.js
+        const formattedDate = moment(
+          item.fecha,
+          "D [DE] MMMM [DE] YYYY",
+          "es"
+        ).toISOString();
+        return {
+          ...item,
+          fecha: formattedDate,
+        };
+      });
+    console.log(filteredData);
+  } */
+
   cron.schedule(
     cronSchedules.scrapingLegal,
     async () => {
