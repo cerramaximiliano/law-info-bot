@@ -24,9 +24,9 @@ let text = '\n' +
     'DE JULIO DE 2024\n' +
     'PERSONAL CON \n' +
     'RETIRO\n' +
-    'Hora: $ \n' +
+    'Hora \n' +
     '3.038\n' +
-    'Mensual: $ \n' +
+    'MEnsual $: \n' +
     '379.071\n' +
     'PERSONAL SIN \n' +
     'RETIRO\n' +
@@ -549,5 +549,8 @@ let originalText = '\n' +
     ' \n' +
     ' \n' +
     '\n'
+
+
+let textAlternative;
 
 module.exports = {text}

@@ -1127,7 +1127,7 @@ const scrapeLegalPage = async (urlPage, include, alternatives, type) => {
       return {
         ...resultado,
         fecha: fechaISO,
-        type
+        type,
       };
     });
     return resultadosConFechaISO;
@@ -1195,7 +1195,7 @@ const scrapePrevisionalLink = async (link) => {
         "No se encontraron elementos que comiencen con 'ARTÍCULO'. Verificar la estructura del DOM."
       );
     }
-    console.log(articles)
+    console.log(articles);
     // Extraer los datos específicos de cada artículo
     const extractedData = articles
       .map((article, index) => {
@@ -1271,6 +1271,134 @@ const scrapeDomesticosLink = async () => {
   }
 };
 
+const scrapeDomesticos = async (urlPage) => {
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: false,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
+      ],
+    });
+    const page = await browser.newPage();
+    await page.goto(urlPage, {
+      waitUntil: "domcontentloaded",
+    });
+
+
+  // Extraer la información de cada tabla
+  const data = await page.evaluate(() => {
+    const resultados = [];
+    const tables = document.querySelectorAll('table');
+
+    tables.forEach((table) => {
+      const fechaElement = document.querySelector('h3, h4');
+      const fecha = fechaElement ? fechaElement.innerText.trim() : 'Fecha no encontrada';
+
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach((row) => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length >= 2) {
+          const categoria = cells[0].innerText.trim();
+
+          if (cells.length === 3) {
+            try {
+              // Extraer datos para CON RETIRO
+              const conRetiroText = cells[1].innerText;
+              const valorHoraConRetiroMatch = conRetiroText.match(/Hora:? \$([\d.,]+)/);
+              const valorMensualConRetiroMatch = conRetiroText.match(/Mensual:? \$([\d.,]+)/);
+
+              if (valorHoraConRetiroMatch && valorMensualConRetiroMatch) {
+                const valorHoraConRetiro = parseFloat(
+                  valorHoraConRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
+                );
+                const valorMensualConRetiro = parseFloat(
+                  valorMensualConRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
+                );
+
+                resultados.push({
+                  fecha,
+                  categoria,
+                  tipo: 'CON RETIRO',
+                  valorHora: valorHoraConRetiro,
+                  valorMensual: valorMensualConRetiro,
+                });
+              }
+
+              // Extraer datos para SIN RETIRO
+              const sinRetiroText = cells[2].innerText;
+              const valorHoraSinRetiroMatch = sinRetiroText.match(/Hora:? \$([\d.,]+)/);
+              const valorMensualSinRetiroMatch = sinRetiroText.match(/Mensual:? \$([\d.,]+)/);
+
+              if (valorHoraSinRetiroMatch && valorMensualSinRetiroMatch) {
+                const valorHoraSinRetiro = parseFloat(
+                  valorHoraSinRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
+                );
+                const valorMensualSinRetiro = parseFloat(
+                  valorMensualSinRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
+                );
+
+                resultados.push({
+                  fecha,
+                  categoria,
+                  tipo: 'SIN RETIRO',
+                  valorHora: valorHoraSinRetiro,
+                  valorMensual: valorMensualSinRetiro,
+                });
+              }
+            } catch (error) {
+              console.error('Error extrayendo datos para la categoría:', categoria, error);
+            }
+          } else if (cells.length === 2) {
+            try {
+              // Extraer datos para CASEROS (sin distinción entre CON RETIRO y SIN RETIRO)
+              const sinRetiroText = cells[1].innerText;
+              const valorHoraSinRetiroMatch = sinRetiroText.match(/Hora:? \$([\d.,]+)/);
+              const valorMensualSinRetiroMatch = sinRetiroText.match(/Mensual:? \$([\d.,]+)/);
+
+              if (valorHoraSinRetiroMatch && valorMensualSinRetiroMatch) {
+                const valorHoraSinRetiro = parseFloat(
+                  valorHoraSinRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
+                );
+                const valorMensualSinRetiro = parseFloat(
+                  valorMensualSinRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
+                );
+
+                resultados.push({
+                  fecha,
+                  categoria,
+                  tipo: 'SIN RETIRO',
+                  valorHora: valorHoraSinRetiro,
+                  valorMensual: valorMensualSinRetiro,
+                });
+              }
+            } catch (error) {
+              console.error('Error extrayendo datos para la categoría CASEROS:', categoria, error);
+            }
+          }
+        }
+      });
+    });
+    return resultados;
+  });
+    
+  return data
+  } catch (error) {
+    logger.error(`Error de scraping page servicio doméstico: ${error}`)
+    throw Error(error)
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+};
+
 module.exports = {
   scrapeNoticias,
   scrapeInfojus,
@@ -1286,4 +1414,5 @@ module.exports = {
   scrapeFeesDataBsAs,
   scrapeLegalPage,
   scrapePrevisionalLink,
+  scrapeDomesticos,
 };
