@@ -78,39 +78,7 @@ const cronSchedules = {
 };
 
 const startCronJobs = async () => {
-  (async () => {
-    try {
-      logger.info(`Tarea de scraping de servicio doméstico iniciado`);
-      const lastData = await obtenerUltimaFecha();
-      const resultsDomesticos = await scrapeDomesticos(
-        process.env.LABORAL_PAGE_2,
-        lastData.fecha
-      );
-      if (resultsDomesticos && resultsDomesticos.length > 0) {
-        const resultsGrouped = await agruparPorFechaYCategoria(
-          resultsDomesticos
-        );
-        const save = await guardarDatosAgrupados(resultsGrouped);
-        logger.info(
-          `Documentos laboral servicio domestico: Guardados insertos ${save.result.nUpserted} , encontrados ${save.result.nMatched}, modificados ${save.result.nModified}`
-        );
-        if (save.result.upserted && save.result.upserted.length > 0) {
-          logger.info(
-            `Hay nuevos recursos laboral servicio doméstico para notificar`
-          );
-          const ids = save.result.upserted.map((item) => item._id);
-          let find = await buscarPorIds(ids);
-        }
-      } else {
-        logger.info(
-          `No se han encontrados actualizaciones laborales servicio doméstico`
-        );
-      }
-    } catch (error) {
-      console.log(error)
-      logger.error(`Error en la tarea de servicio doméstico: ${error}`);
-    }
-  })();
+
   // Cron que hace scraping sobre datos laborales - servicio doméstico
   cron.schedule(
     cronSchedules.scrapingLaboral,
@@ -131,6 +99,14 @@ const startCronJobs = async () => {
           logger.info(
             `Documentos laboral servicio domestico: Guardados insertos ${save.result.nUpserted} , encontrados ${save.result.nMatched}, modificados ${save.result.nModified}`
           );
+          if (save.result.upserted && save.result.upserted.length > 0) {
+            logger.info(
+              `Hay nuevos recursos laboral servicio doméstico para notificar`
+            );
+            const ids = save.result.upserted.map((item) => item._id);
+            let find = await buscarPorIds(ids);
+            // Una vez encontrados estos documentos. hacer mensaje para telegram y posteo IG
+          }
         } else {
           logger.info(
             `No se han encontrados actualizaciones laborales servicio doméstico`
