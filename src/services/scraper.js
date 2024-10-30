@@ -18,6 +18,7 @@ const Tracking = require("../models/tracking");
 const poll = require("promise-poller").default;
 const fs = require("fs");
 const path = require("path");
+
 const {
   saveOrUpdateTrackingData,
 } = require("../controllers/trackingControllers");
@@ -1260,22 +1261,11 @@ const scrapePrevisionalLink = async (link) => {
   }
 };
 
-const scrapeDomesticosLink = async () => {
-  try {
-  } catch (error) {
-    throw new Error(error);
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
-  }
-};
-
-const scrapeDomesticos = async (urlPage) => {
+const scrapeDomesticos = async (urlPage, fechaInicio) => {
   let browser;
   try {
     browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -1291,107 +1281,228 @@ const scrapeDomesticos = async (urlPage) => {
       waitUntil: "domcontentloaded",
     });
 
+    // Ajustar la fecha de inicio al inicio del día (hora cero)
+    const fechaInicioMoment = moment(fechaInicio).startOf("day");
 
-  // Extraer la información de cada tabla
-  const data = await page.evaluate(() => {
-    const resultados = [];
-    const tables = document.querySelectorAll('table');
+    // Extraer la información de cada tabla
+    const data = await page.evaluate(() => {
+      const resultados = [];
+      const warnings = [];
+      const tables = document.querySelectorAll("table");
 
-    tables.forEach((table) => {
-      const fechaElement = document.querySelector('h3, h4');
-      const fecha = fechaElement ? fechaElement.innerText.trim() : 'Fecha no encontrada';
+      tables.forEach((table) => {
+        let fechaElement = table.previousElementSibling;
+        while (fechaElement && !fechaElement.matches("h3, h4, h5")) {
+          fechaElement = fechaElement.previousElementSibling;
+        }
+        let fecha = fechaElement
+          ? fechaElement.innerText.trim()
+          : "Fecha no encontrada";
+        if (fecha === "Fecha no encontrada") {
+          warnings.push(
+            `Advertencia: No se encontró la fecha para una de las tablas. Nodo HTML: ${table.outerHTML}`
+          );
+        }
 
-      const rows = table.querySelectorAll('tbody tr');
-      rows.forEach((row) => {
-        const cells = row.querySelectorAll('td');
-        if (cells.length >= 2) {
-          const categoria = cells[0].innerText.trim();
+        // Extraer solo la fecha (día, mes y año) del texto
+        const fechaMatch = fecha.match(
+          /(?:A PARTIR DEL|a partir del)\s+(\d{1,2})[°º]?\s+de\s+([A-ZÁÉÍÓÚa-záéíóú]+)\s+de\s+(\d{4})/i
+        );
 
-          if (cells.length === 3) {
-            try {
-              // Extraer datos para CON RETIRO
-              const conRetiroText = cells[1].innerText;
-              const valorHoraConRetiroMatch = conRetiroText.match(/Hora:? \$([\d.,]+)/);
-              const valorMensualConRetiroMatch = conRetiroText.match(/Mensual:? \$([\d.,]+)/);
+        if (fechaMatch) {
+          const day = fechaMatch[1].padStart(2, "0");
+          const monthNames = {
+            ENERO: "01",
+            FEBRERO: "02",
+            MARZO: "03",
+            ABRIL: "04",
+            MAYO: "05",
+            JUNIO: "06",
+            JULIO: "07",
+            AGOSTO: "08",
+            SEPTIEMBRE: "09",
+            SETIEMBRE: "09",
+            OCTUBRE: "10",
+            NOVIEMBRE: "11",
+            DICIEMBRE: "12",
+            enero: "01",
+            febrero: "02",
+            marzo: "03",
+            abril: "04",
+            mayo: "05",
+            junio: "06",
+            julio: "07",
+            agosto: "08",
+            septiembre: "09",
+            setiembre: "09",
+            octubre: "10",
+            noviembre: "11",
+            diciembre: "12",
+          };
 
-              if (valorHoraConRetiroMatch && valorMensualConRetiroMatch) {
-                const valorHoraConRetiro = parseFloat(
-                  valorHoraConRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
-                );
-                const valorMensualConRetiro = parseFloat(
-                  valorMensualConRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
-                );
+          const month =
+            monthNames[fechaMatch[2].toUpperCase()] ||
+            monthNames[fechaMatch[2].toLowerCase()];
+          const year = fechaMatch[3];
 
-                resultados.push({
-                  fecha,
-                  categoria,
-                  tipo: 'CON RETIRO',
-                  valorHora: valorHoraConRetiro,
-                  valorMensual: valorMensualConRetiro,
-                });
-              }
+          if (day && month && year) {
+            const dateObj = new Date(
+              Date.UTC(
+                parseInt(year),
+                parseInt(month) - 1, // Los meses en JavaScript son 0-based
+                parseInt(day),
+                12, // hora
+                0, // minutos
+                0 // segundos
+              )
+            );
 
-              // Extraer datos para SIN RETIRO
-              const sinRetiroText = cells[2].innerText;
-              const valorHoraSinRetiroMatch = sinRetiroText.match(/Hora:? \$([\d.,]+)/);
-              const valorMensualSinRetiroMatch = sinRetiroText.match(/Mensual:? \$([\d.,]+)/);
-
-              if (valorHoraSinRetiroMatch && valorMensualSinRetiroMatch) {
-                const valorHoraSinRetiro = parseFloat(
-                  valorHoraSinRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
-                );
-                const valorMensualSinRetiro = parseFloat(
-                  valorMensualSinRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
-                );
-
-                resultados.push({
-                  fecha,
-                  categoria,
-                  tipo: 'SIN RETIRO',
-                  valorHora: valorHoraSinRetiro,
-                  valorMensual: valorMensualSinRetiro,
-                });
-              }
-            } catch (error) {
-              console.error('Error extrayendo datos para la categoría:', categoria, error);
-            }
-          } else if (cells.length === 2) {
-            try {
-              // Extraer datos para CASEROS (sin distinción entre CON RETIRO y SIN RETIRO)
-              const sinRetiroText = cells[1].innerText;
-              const valorHoraSinRetiroMatch = sinRetiroText.match(/Hora:? \$([\d.,]+)/);
-              const valorMensualSinRetiroMatch = sinRetiroText.match(/Mensual:? \$([\d.,]+)/);
-
-              if (valorHoraSinRetiroMatch && valorMensualSinRetiroMatch) {
-                const valorHoraSinRetiro = parseFloat(
-                  valorHoraSinRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
-                );
-                const valorMensualSinRetiro = parseFloat(
-                  valorMensualSinRetiroMatch[1].replace(/[.,]/g, (m) => (m === '.' ? '' : '.'))
-                );
-
-                resultados.push({
-                  fecha,
-                  categoria,
-                  tipo: 'SIN RETIRO',
-                  valorHora: valorHoraSinRetiro,
-                  valorMensual: valorMensualSinRetiro,
-                });
-              }
-            } catch (error) {
-              console.error('Error extrayendo datos para la categoría CASEROS:', categoria, error);
+            if (!isNaN(dateObj)) {
+              fecha = dateObj.toISOString();
+            } else {
+              warnings.push(`Advertencia: Fecha inválida extraída: ${fecha}`);
             }
           }
         }
+
+        const rows = table.querySelectorAll("tbody tr");
+        rows.forEach((row) => {
+          const cells = row.querySelectorAll("td");
+          if (cells.length >= 2) {
+            let categoria = cells[0].innerText.trim();
+
+            // Filtrar la categoría
+            const categoriaMatch = categoria.match(
+              /SUPERVISOR|PERSONAL PARA TAREAS ESPECIFICAS|PERSONAL PARA TAREAS ESPECÍFICAS|CASEROS|ASISTENCIA Y CUIDADO DE PERSONAS|PERSONAL PARA TAREAS GENERALES/i
+            );
+            categoria = categoriaMatch ? categoriaMatch[0] : categoria;
+
+            if (cells.length === 3) {
+              try {
+                // Extraer datos para CON RETIRO
+                const conRetiroText = cells[1].innerText;
+                const valorHoraConRetiroMatch =
+                  conRetiroText.match(/Hora:? \$([\d.,]+)/);
+                const valorMensualConRetiroMatch = conRetiroText.match(
+                  /Mensual:? \$([\d.,]+)/
+                );
+
+                if (valorHoraConRetiroMatch && valorMensualConRetiroMatch) {
+                  const valorHoraConRetiro = parseFloat(
+                    valorHoraConRetiroMatch[1].replace(/[.,]/g, (m) =>
+                      m === "." ? "" : "."
+                    )
+                  );
+                  const valorMensualConRetiro = parseFloat(
+                    valorMensualConRetiroMatch[1].replace(/[.,]/g, (m) =>
+                      m === "." ? "" : "."
+                    )
+                  );
+
+                  resultados.push({
+                    fecha,
+                    categoria,
+                    tipo: "CON RETIRO",
+                    valorHora: valorHoraConRetiro,
+                    valorMensual: valorMensualConRetiro,
+                  });
+                }
+
+                // Extraer datos para SIN RETIRO
+                const sinRetiroText = cells[2].innerText;
+                const valorHoraSinRetiroMatch =
+                  sinRetiroText.match(/Hora:? \$([\d.,]+)/);
+                const valorMensualSinRetiroMatch = sinRetiroText.match(
+                  /Mensual:? \$([\d.,]+)/
+                );
+
+                if (valorHoraSinRetiroMatch && valorMensualSinRetiroMatch) {
+                  const valorHoraSinRetiro = parseFloat(
+                    valorHoraSinRetiroMatch[1].replace(/[.,]/g, (m) =>
+                      m === "." ? "" : "."
+                    )
+                  );
+                  const valorMensualSinRetiro = parseFloat(
+                    valorMensualSinRetiroMatch[1].replace(/[.,]/g, (m) =>
+                      m === "." ? "" : "."
+                    )
+                  );
+
+                  resultados.push({
+                    fecha,
+                    categoria,
+                    tipo: "SIN RETIRO",
+                    valorHora: valorHoraSinRetiro,
+                    valorMensual: valorMensualSinRetiro,
+                  });
+                }
+              } catch (error) {
+                logger.error(
+                  "Error extrayendo datos para la categoría:",
+                  categoria,
+                  error
+                );
+              }
+            } else if (cells.length === 2) {
+              try {
+                // Extraer datos para CASEROS (sin distinción entre CON RETIRO y SIN RETIRO)
+                const sinRetiroText = cells[1].innerText;
+                const valorHoraSinRetiroMatch =
+                  sinRetiroText.match(/Hora:? \$([\d.,]+)/);
+                const valorMensualSinRetiroMatch = sinRetiroText.match(
+                  /Mensual:? \$([\d.,]+)/
+                );
+
+                if (valorHoraSinRetiroMatch && valorMensualSinRetiroMatch) {
+                  const valorHoraSinRetiro = parseFloat(
+                    valorHoraSinRetiroMatch[1].replace(/[.,]/g, (m) =>
+                      m === "." ? "" : "."
+                    )
+                  );
+                  const valorMensualSinRetiro = parseFloat(
+                    valorMensualSinRetiroMatch[1].replace(/[.,]/g, (m) =>
+                      m === "." ? "" : "."
+                    )
+                  );
+
+                  resultados.push({
+                    fecha,
+                    categoria,
+                    tipo: "SIN RETIRO",
+                    valorHora: valorHoraSinRetiro,
+                    valorMensual: valorMensualSinRetiro,
+                  });
+                }
+              } catch (error) {
+                logger.error(
+                  "Error extrayendo datos para la categoría CASEROS:",
+                  categoria,
+                  error
+                );
+              }
+            }
+          }
+        });
       });
+      return { resultados, warnings };
     });
-    return resultados;
-  });
-    
-  return data
+
+    const { resultados, warnings } = data;
+
+    // Mostrar advertencias de fechas no encontradas
+    warnings.forEach((warning) => {
+      logger.error(warning);
+    });
+
+    // Filtrar los resultados para devolver solo las fechas posteriores a la fecha proporcionada
+    const resultadosFiltrados = resultados.filter(({ fecha }) => {
+      return moment(fecha).isAfter(fechaInicioMoment, "day");
+    });
+
+    return resultadosFiltrados;
   } catch (error) {
-    logger.error(`Error de scraping page servicio doméstico: ${error}`)
-    throw Error(error)
+    logger.error(`Error de scraping page servicio doméstico: ${error}`);
+    throw Error(error);
   } finally {
     if (browser) {
       await browser.close();

@@ -52,6 +52,12 @@ const { extractData, iterateTextByLine } = require("../utils/readFile");
 const { askQuestion } = require("./chatgpt");
 const moment = require("moment");
 const { text } = require("../files/legales/text");
+const {
+  agruparPorFechaYCategoria,
+  guardarDatosAgrupados,
+  obtenerUltimaFecha,
+  buscarPorIds,
+} = require("../controllers/servicioDomesticoControllers");
 
 const cronSchedules = {
   notifyNews: "30 10 * * 1-5",
@@ -60,6 +66,9 @@ const cronSchedules = {
   scrapingActs: "0 8 * * 1-5",
   scrapingFees: "10 8 * * 1-5",
   scrapingLegal: "15 8 * * 1-5",
+
+  scrapingLaboral: "20 14 * * 1-5",
+
   notifyPrev: "15 9 * * 1-5",
   scrapingCourses: "0 19 * * 5",
   feesNotificationHours: "0 9 * * 1-5",
@@ -69,7 +78,73 @@ const cronSchedules = {
 };
 
 const startCronJobs = async () => {
-  
+  (async () => {
+    try {
+      logger.info(`Tarea de scraping de servicio doméstico iniciado`);
+      const lastData = await obtenerUltimaFecha();
+      const resultsDomesticos = await scrapeDomesticos(
+        process.env.LABORAL_PAGE_2,
+        lastData.fecha
+      );
+      if (resultsDomesticos && resultsDomesticos.length > 0) {
+        const resultsGrouped = await agruparPorFechaYCategoria(
+          resultsDomesticos
+        );
+        const save = await guardarDatosAgrupados(resultsGrouped);
+        logger.info(
+          `Documentos laboral servicio domestico: Guardados insertos ${save.result.nUpserted} , encontrados ${save.result.nMatched}, modificados ${save.result.nModified}`
+        );
+        if (save.result.upserted && save.result.upserted.length > 0) {
+          logger.info(
+            `Hay nuevos recursos laboral servicio doméstico para notificar`
+          );
+          const ids = save.result.upserted.map((item) => item._id);
+          let find = await buscarPorIds(ids);
+        }
+      } else {
+        logger.info(
+          `No se han encontrados actualizaciones laborales servicio doméstico`
+        );
+      }
+    } catch (error) {
+      console.log(error)
+      logger.error(`Error en la tarea de servicio doméstico: ${error}`);
+    }
+  })();
+  // Cron que hace scraping sobre datos laborales - servicio doméstico
+  cron.schedule(
+    cronSchedules.scrapingLaboral,
+    async () => {
+      try {
+        logger.info(`Tarea de scraping de servicio doméstico iniciado`);
+        const lastData = await obtenerUltimaFecha();
+        const resultsDomesticos = await scrapeDomesticos(
+          process.env.LABORAL_PAGE_2,
+          lastData.fecha
+        );
+
+        if (resultsDomesticos && resultsDomesticos.length > 0) {
+          const resultsGrouped = await agruparPorFechaYCategoria(
+            resultsDomesticos
+          );
+          const save = await guardarDatosAgrupados(resultsGrouped);
+          logger.info(
+            `Documentos laboral servicio domestico: Guardados insertos ${save.result.nUpserted} , encontrados ${save.result.nMatched}, modificados ${save.result.nModified}`
+          );
+        } else {
+          logger.info(
+            `No se han encontrados actualizaciones laborales servicio doméstico`
+          );
+        }
+      } catch (error) {
+        logger.error(`Error en la tarea de servicio doméstico`);
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "America/Argentina/Buenos_Aires",
+    }
+  );
 
   // Cron que hace scraping sobre datos previsionales
   cron.schedule(
