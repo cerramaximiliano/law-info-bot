@@ -78,7 +78,7 @@ const obtenerUltimaFecha = async () => {
     });
 
     if (!ultimoRegistro) {
-      return "No se encontraron registros";
+      return null;
     }
 
     return ultimoRegistro;
@@ -101,7 +101,21 @@ const buscarPorIds = async (ids) => {
     // Enviar la respuesta con los elementos encontrados
     return resultados;
   } catch (error) {
-    logger.error("Error al buscar por IDs:", error);
+    logger.error(`Error al buscar por IDs: ${error}`);
+    throw new Error(error);
+  }
+};
+
+const findDocumentsToPost = async () => {
+  try {
+    const results = await ServicioDomestico.find({ postIG: false });
+    if (results.length > 0) {
+      return results;
+    } else {
+      return [];
+    }
+  } catch (error) {
+    logger.error(`Error al buscar documentos: ${error}`);
     throw new Error(error);
   }
 };
@@ -111,4 +125,5 @@ module.exports = {
   guardarDatosAgrupados,
   obtenerUltimaFecha,
   buscarPorIds,
+  findDocumentsToPost,
 };

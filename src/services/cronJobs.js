@@ -35,8 +35,14 @@ const {
   extractMontoAndPeriodo,
   getIdArray,
 } = require("../utils/formatText");
+const { renderTables, example } = require("../utils/formatHTML");
 const { generateScreenshot } = require("../utils/generateImages");
-const { newFeesPosts, prevPost } = require("../posts/intagramPosts");
+const {
+  newFeesPosts,
+  prevPost,
+  firstLaboralPost,
+  secondLaboralTablePost,
+} = require("../posts/instagramPosts");
 const {
   uploadMedia,
   uploadCarouselMedia,
@@ -57,7 +63,9 @@ const {
   guardarDatosAgrupados,
   obtenerUltimaFecha,
   buscarPorIds,
+  findDocumentsToPost,
 } = require("../controllers/servicioDomesticoControllers");
+const util = require("util");
 
 const cronSchedules = {
   notifyNews: "30 10 * * 1-5",
@@ -67,7 +75,8 @@ const cronSchedules = {
   scrapingFees: "10 8 * * 1-5",
   scrapingLegal: "15 8 * * 1-5",
 
-  scrapingLaboral: "20 14 * * 1-5",
+  scrapingLaboral: "20 8 * * 1-5",
+  notifyLaboralDomestico: "30 9 * * 1-5 ",
 
   notifyPrev: "15 9 * * 1-5",
   scrapingCourses: "0 19 * * 5",
@@ -76,8 +85,101 @@ const cronSchedules = {
   notifyNewCoursesHours: "0 9 16 * *",
   cleanLogsHours: "0 0 15,30 * *",
 };
+firstLaboralPost;
 
 const startCronJobs = async () => {
+
+  // Cron que notifica post de IG de datos laborales - servicios doméstic
+  cron.schedule(
+    cronSchedules.notifyLaboralDomestico,
+    async () => {
+      try {
+        const found = await findDocumentsToPost();
+        if (found && found.length > 0) {
+          logger.info(
+            `Hay documentos laboral - servicio doméstico para notificar post IG`
+          );
+          const tables = renderTables(example);
+          const htmlFirstPost = firstLaboralPost(
+            { subtitle: "Ley 26.844", title: "Personal Casas Particulares" },
+            "https://res.cloudinary.com/dqyoeolib/image/upload/v1730293801/ltxyz27xjk9cl3a3gljo.webp"
+          );
+          let imageIds = [];
+          let imageUrls = [];
+
+          const generatedFile = await generateScreenshot(htmlFirstPost);
+          const image = await uploadImage(`./src/files/${generatedFile}`);
+          const imageId = image.public_id;
+          imageIds.push(imageId);
+          imageUrls.push(image.secure_url);
+
+          for (let index = 0; index < tables.length; index++) {
+            const htmlElements = tables[index];
+            console.log("=====================");
+            const htmlCode = secondLaboralTablePost(
+              htmlElements,
+              "https://res.cloudinary.com/dqyoeolib/image/upload/v1730293801/ltxyz27xjk9cl3a3gljo.webp"
+            );
+            const generatedFile = await generateScreenshot(htmlCode);
+            const image = await uploadImage(`./src/files/${generatedFile}`);
+            const imageId = image.public_id;
+
+            imageIds.push(imageId);
+            imageUrls.push(image.secure_url);
+          }
+          if (imageUrls && imageUrls.length > 0) {
+            const caption =
+              "Actualización laboral Ley 26.844 Personal de Casas Particulares\n #serviciodomestico #Ley26844 #aumentos #laboral #remuneraciones #actualizlaciones\n\n";
+            await uploadCarouselMedia(imageUrls, caption);
+          }
+        } else {
+          logger.info(
+            `No hay documentos para notificar laboral - servicio doméstico`
+          );
+        }
+      } catch (error) {
+        logger.error(
+          `Error en notificación laboral - servicio doméstico posts IG`
+        );
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "America/Argentina/Buenos_Aires",
+    }
+  );
+
+  // Cron que hace scraping sobre datos laborales - servicios doméstico
+  cron.schedule(
+    cronSchedules.notifyLaboralDomestico,
+    async () => {
+      try {
+        // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> TODO
+        // ELIMINAR EL SCRAPING Y SOLO BUSCAR LOS ELEMENTOS NUEVOS Y NO NOTIFICADOS
+        logger.info(`Tarea de scraping de servicio doméstico iniciado`);
+        const lastData = await obtenerUltimaFecha();
+        const resultsDomesticos = await scrapeDomesticos(
+          process.env.LABORAL_PAGE_2,
+          lastData.fecha
+        );
+        if (resultsDomesticos && resultsDomesticos.length > 0) {
+          const resultsGrouped = await agruparPorFechaYCategoria(
+            resultsDomesticos
+          );
+          const save = await guardarDatosAgrupados(resultsGrouped);
+          logger.info(
+            `Documentos laboral servicio domestico: Guardados insertos ${save.result.nUpserted} , encontrados ${save.result.nMatched}, modificados ${save.result.nModified}`
+          );
+        }
+      } catch (error) {
+        logger.error(`Error en la tarea de servicio doméstico: ${error}`);
+      }
+    },
+    {
+      scheduled: true,
+      timezone: "America/Argentina/Buenos_Aires",
+    }
+  );
 
   // Cron que hace scraping sobre datos laborales - servicio doméstico
   cron.schedule(
@@ -103,9 +205,6 @@ const startCronJobs = async () => {
             logger.info(
               `Hay nuevos recursos laboral servicio doméstico para notificar`
             );
-            const ids = save.result.upserted.map((item) => item._id);
-            let find = await buscarPorIds(ids);
-            // Una vez encontrados estos documentos. hacer mensaje para telegram y posteo IG
           }
         } else {
           logger.info(
@@ -195,10 +294,10 @@ const startCronJobs = async () => {
               }
             }
             if (imageIds.length > 0 && imageUrls.length > 0) {
+              const caption =
+                "Actualización previsional ANSES\n #ANSES #Ley24241 #jubilaciones #pensiones #pbu #puam\n\n";
+              await uploadCarouselMedia(imageUrls, caption);
             }
-            const caption =
-              "Actualización previsional ANSES\n #ANSES #Ley24241 #jubilaciones #pensiones #pbu #puam\n\n";
-            await uploadCarouselMedia(imageUrls, caption);
           }
         }
       } catch (error) {

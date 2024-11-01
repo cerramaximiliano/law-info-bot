@@ -790,4 +790,378 @@ const prevPost = (data) => {
 </html>`;
 };
 
-module.exports = { newFeesPosts, prevPost };
+const firstLaboralPost = (data, urlImage) => {
+  return `
+  <html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0;
+        background-color: #f8f9fa; /* Fondo suave */
+      }
+
+            .container {
+        width: 1080px;
+        height: 1080px;
+        background-color: #f6f6f6;
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15); /* Sombra más profunda */
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 25px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .container::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url(${urlImage});
+        background-size: cover;
+        opacity: 0.3; /* Controla la opacidad solo de la imagen */
+        z-index: 0; /* Asegura que la imagen esté detrás del contenido */
+      }
+
+      .header {
+        background-color: transparent;
+        color: #1b2a41;
+        padding: 30px;
+        height: 35%;
+        position: relative;
+      }
+
+      h1 {
+        font-size: 9rem;
+        margin-bottom: 15px;
+        font-weight: 700;
+      }
+
+      .subheader {
+        font-size: 3.5rem;
+        color: #1b2a41;
+        position: relative;
+        text-align: center;
+      }
+
+      .divider {
+        margin: auto;
+        margin-top: 8px;
+        align-items: center;
+        width: 50%;
+        height: 3.5px; /* Línea más gruesa */
+        background-color: #1b2a41;
+      }
+
+      .content {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        margin-top: 30px;
+        flex-grow: 1;
+      }
+
+      .box {
+        max-height: fit-content;
+        background-color: transparent;
+        width: 45%;
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .price {
+        font-size: 6.5rem;
+        color: #1b2a41;
+        margin-bottom: 10px;
+        font-weight: bold;
+        position: relative;
+      }
+
+      .date {
+        font-size: 3rem;
+        color: #1b2a41;
+        margin-top: 15px;
+      }
+      .logo {
+        color: #1b2a41;
+        font-family: "Cinzel", serif;
+        font-optical-sizing: auto;
+        font-weight: <weight>;
+        font-style: normal;
+        font-size: 35px;
+        margin-bottom: 80px;
+      }
+
+      @media (max-width: 1080px) {
+        .container {
+          width: 90vw;
+          height: 90vw;
+          padding: 15px;
+        }
+
+        h1 {
+          font-size: 5.5rem;
+        }
+
+        .subheader {
+          font-size: 2rem;
+        }
+
+        .price {
+          font-size: 3.6rem;
+        }
+
+        .date {
+          font-size: 1.3rem;
+        }
+
+        .content {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .box {
+          width: 80%;
+          margin-bottom: 25px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="postContainer">
+      <!-- Borde superior izquierdo -->
+      <div class="border-top-left"></div>
+      <div class="border-left-top"></div>
+
+      <!-- Borde superior derecho -->
+      <div class="border-top-right"></div>
+      <div class="border-right-top"></div>
+
+      <!-- Borde inferior izquierdo -->
+      <div class="border-bottom-left"></div>
+      <div class="border-left-bottom"></div>
+
+      <!-- Borde inferior derecho -->
+      <div class="border-bottom-right"></div>
+      <div class="border-right-bottom"></div>
+
+      <div class="header">
+        <h1>Aumentos</h1>
+        <p class="subheader">${data.subtitle}</p>
+        <div class="divider"></div>
+      </div>
+      <div class="content">
+        <div class="box">
+          <p class="price">${data.title}</p>
+        </div>
+      </div>
+      <div>
+        <p class="logo">Law||Analytics</p>
+      </div>
+    </div>
+  </body>
+</html>
+  `;
+};
+
+const secondLaboralTablePost = (table, urlImage) => {
+  return `
+  <html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Poppins", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0;
+        background-color: #f8f9fa; /* Fondo suave */
+      }
+
+      .container {
+        width: 1080px;
+        height: 1080px;
+        background-color: #f6f6f6;
+        box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15); /* Sombra más profunda */
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 25px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .container::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url(${urlImage});
+        background-size: cover;
+        opacity: 0.3; /* Controla la opacidad solo de la imagen */
+        z-index: 0; /* Asegura que la imagen esté detrás del contenido */
+      }
+      .header {
+        background-color: transparent;
+        color: #1b2a41;
+        padding-top: 30px;
+        padding-bottom: 15px;
+        height: 35%;
+        position: relative;
+      }
+
+      h1 {
+        font-size: 9rem;
+        margin-bottom: 15px;
+        font-weight: 700;
+      }
+
+      .subheader {
+        font-size: 3.5rem;
+        color: #1b2a41;
+        position: relative;
+        text-align: center;
+      }
+
+      .divider {
+        margin: auto;
+        margin-top: 8px;
+        align-items: center;
+        width: 50%;
+        height: 3.5px; /* Línea más gruesa */
+        background-color: #1b2a41;
+      }
+
+      .content {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        flex-grow: 1;
+      }
+
+      .box {
+        max-height: fit-content;
+        background-color: transparent;
+        width: 80%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .logo {
+        color: #1b2a41;
+        font-family: "Cinzel", serif;
+        font-optical-sizing: auto;
+        font-weight: <weight>;
+        font-style: normal;
+        font-size: 35px;
+        margin-bottom: 20px;
+      }
+      .tableTitle {
+        font-size: 1.3rem;
+        margin-bottom: 5px;
+      }
+      .tableStyle {
+        font-size: 1.3rem;
+        border-spacing: 18px 18px;
+      }
+
+      @media (max-width: 1080px) {
+        .container {
+          width: 90vw;
+          height: 90vw;
+          padding: 15px;
+        }
+
+        h1 {
+          font-size: 5.5rem;
+        }
+
+        .subheader {
+          font-size: 2rem;
+        }
+
+        .price {
+          font-size: 3.6rem;
+        }
+
+        .date {
+          font-size: 1.3rem;
+        }
+
+        .content {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .box {
+          width: 80%;
+          margin-bottom: 25px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container" id="postContainer">
+      <div class="header">
+        <h1>Aumentos</h1>
+        <p class="subheader">Ley 26.844</p>
+        <div class="divider"></div>
+      </div>
+      <div class="content">
+        <div class="box">
+          ${table}
+        </div>
+      </div>
+      <div>
+        <p class="logo">Law||Analytics</p>
+      </div>
+    </div>
+  </body>
+</html>
+  `;
+};
+
+module.exports = { newFeesPosts, prevPost, firstLaboralPost, secondLaboralTablePost };

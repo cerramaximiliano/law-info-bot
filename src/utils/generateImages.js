@@ -48,7 +48,7 @@ async function generateScreenshot(html) {
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
-    delay(8000)
+    delay(150000)
     // Captura solo el contenido del nodo "container"
     await element.screenshot({
       path: screenshotPath,

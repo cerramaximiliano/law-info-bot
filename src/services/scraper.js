@@ -1495,11 +1495,14 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
     });
 
     // Filtrar los resultados para devolver solo las fechas posteriores a la fecha proporcionada
-    const resultadosFiltrados = resultados.filter(({ fecha }) => {
-      return moment(fecha).isAfter(fechaInicioMoment, "day");
-    });
-
-    return resultadosFiltrados;
+    if (fechaInicio) {
+      const resultadosFiltrados = resultados.filter(({ fecha }) => {
+        return moment(fecha).isAfter(fechaInicioMoment, "day");
+      });
+      return resultadosFiltrados;
+    } else {
+      return resultados;
+    }
   } catch (error) {
     logger.error(`Error de scraping page servicio doméstico: ${error}`);
     throw Error(error);

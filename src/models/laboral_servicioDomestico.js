@@ -1,16 +1,16 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 // Esquema para los valores de cada tipo
 const tipoSchema = new mongoose.Schema({
   tipo: String,
   valorHora: Number,
-  valorMensual: Number
+  valorMensual: Number,
 });
 
 // Esquema principal para la categoría
 const categoriaSchema = new mongoose.Schema({
   categoria: String,
-  tipos: [tipoSchema]
+  tipos: [tipoSchema],
 });
 
 // Esquema principal para la fecha
@@ -24,6 +24,6 @@ const fechaSchema = new mongoose.Schema({
 });
 
 // Modelo para la colección
-const ServicioDomestico = mongoose.model('laboral_domestico', fechaSchema);
+const ServicioDomestico = mongoose.model("laboral_domestico", fechaSchema);
 
 module.exports = ServicioDomestico;
