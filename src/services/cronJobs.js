@@ -89,7 +89,6 @@ const cronSchedules = {
 firstLaboralPost;
 
 const startCronJobs = async () => {
-
   // Cron que notifica post de IG de datos laborales - servicios doméstic
   cron.schedule(
     cronSchedules.notifyLaboralDomestico,
@@ -100,43 +99,69 @@ const startCronJobs = async () => {
           const ids = found.map((element) => {
             return element._id;
           });
-        
+
           logger.info(
             `Hay documentos laboral - servicio doméstico para notificar post IG`
           );
-          const tables = renderTables(example);
-          const htmlFirstPost = firstLaboralPost(
-            { subtitle: "Ley 26.844", title: "Personal Casas Particulares" },
-            "https://res.cloudinary.com/dqyoeolib/image/upload/v1730293801/ltxyz27xjk9cl3a3gljo.webp"
-          );
+          const tables = renderTables(found);
+
           let imageIds = [];
           let imageUrls = [];
 
-          const generatedFile = await generateScreenshot(htmlFirstPost);
-          const image = await uploadImage(`./src/files/${generatedFile}`);
-          const imageId = image.public_id;
-          imageIds.push(imageId);
-          imageUrls.push(image.secure_url);
-
-          for (let index = 0; index < tables.length; index++) {
-            const htmlElements = tables[index];
-            console.log("=====================");
-            const htmlCode = secondLaboralTablePost(
-              htmlElements,
-              "https://res.cloudinary.com/dqyoeolib/image/upload/v1730293801/ltxyz27xjk9cl3a3gljo.webp"
+          let generatedFile;
+          try {
+            generatedFile = await generateScreenshot(
+              firstLaboralPost(
+                {
+                  subtitle: "Ley 26.844",
+                  title: "Personal Casas Particulares",
+                },
+                "https://res.cloudinary.com/dqyoeolib/image/upload/v1730293801/ltxyz27xjk9cl3a3gljo.webp"
+              )
             );
-            const generatedFile = await generateScreenshot(htmlCode);
             const image = await uploadImage(`./src/files/${generatedFile}`);
-            const imageId = image.public_id;
-
-            imageIds.push(imageId);
-            imageUrls.push(image.secure_url);
+            if (image && image.secure_url) {
+              imageUrls.push(image.secure_url);
+              imageIds.push(image.public_id);
+            }
+          } catch (error) {
+            logger.error(
+              `Error generando o subiendo la primera imagen: ${error}`
+            );
+            return;
           }
-          if (imageUrls && imageUrls.length > 0) {
-            const caption =
-              "Actualización laboral Ley 26.844 Personal de Casas Particulares\n #serviciodomestico #Ley26844 #aumentos #laboral #remuneraciones #actualizlaciones\n\n";
-            await uploadCarouselMedia(imageUrls, caption);
-              const update = await updateNotifications(ids, [{postIG: true}]);
+          if (tables.length > 0) {
+            for (let index = 0; index < tables.length; index++) {
+              try {
+                const htmlCode = secondLaboralTablePost(
+                  tables[index],
+                  "https://res.cloudinary.com/dqyoeolib/image/upload/v1730293801/ltxyz27xjk9cl3a3gljo.webp"
+                );
+                generatedFile = await generateScreenshot(htmlCode);
+                const image = await uploadImage(`./src/files/${generatedFile}`);
+                if (image && image.secure_url) {
+                  imageUrls.push(image.secure_url);
+                  imageIds.push(image.public_id);
+                }
+              } catch (error) {
+                logger.error(
+                  `Error generando o subiendo imagen de la tabla: ${error.message}`
+                );
+              }
+            }
+          }
+
+          if (imageUrls.length > 1) {
+            try {
+              const caption =
+                "Actualización laboral Ley 26.844 Personal de Casas Particulares\n #serviciodomestico #Ley26844 #aumentos #laboral #remuneraciones #actualizlaciones\n\n";
+              await uploadCarouselMedia(imageUrls, caption);
+              await updateNotifications(ids, [{ postIG: true }]);
+            } catch (error) {
+              logger.error(
+                `Error al subir carrusel o actualizar notificaciones: ${error.message}`
+              );
+            }
           }
         } else {
           logger.info(
