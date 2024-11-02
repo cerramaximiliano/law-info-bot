@@ -120,10 +120,49 @@ const findDocumentsToPost = async () => {
   }
 };
 
+async function updateNotifications(ids, notificationTypes) {
+  try {
+    // Validar que todos los objetos en notificationTypes tienen propiedades válidas
+    const validTypes = ["notifiedByTelegram", "notifiedByWhatsApp", "postIG"];
+    notificationTypes.forEach((obj) => {
+      Object.keys(obj).forEach((key) => {
+        if (!validTypes.includes(key)) {
+          throw new Error(
+            "Tipo de notificación inválido. Debe ser 'notifiedByTelegram', 'notifiedByWhatsApp' o 'postIG'."
+          );
+        }
+      });
+    });
+
+    // Construir el objeto de actualización
+    const updateFields = notificationTypes.reduce((acc, obj) => {
+      return { ...acc, ...obj };
+    }, {});
+
+    // Asegurar que siempre se incluya postIG: true
+    updateFields.postIG = true;
+
+    // Actualizar los documentos con los IDs proporcionados
+    const updatedDocuments = await ServicioDomestico.updateMany(
+      { _id: { $in: ids } },
+      { $set: updateFields },
+      { new: true, multi: true }
+    );
+
+    // Obtener los documentos actualizados
+    const result = await ServicioDomestico.find({ _id: { $in: ids } });
+    return result;
+  } catch (error) {
+    console.error("Error actualizando las notificaciones: ", error);
+    throw error;
+  }
+}
+
 module.exports = {
   agruparPorFechaYCategoria,
   guardarDatosAgrupados,
   obtenerUltimaFecha,
   buscarPorIds,
   findDocumentsToPost,
+  updateNotifications,
 };

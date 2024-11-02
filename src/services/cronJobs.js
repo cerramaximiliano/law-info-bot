@@ -64,6 +64,7 @@ const {
   obtenerUltimaFecha,
   buscarPorIds,
   findDocumentsToPost,
+  updateNotifications,
 } = require("../controllers/servicioDomesticoControllers");
 const util = require("util");
 
@@ -96,6 +97,10 @@ const startCronJobs = async () => {
       try {
         const found = await findDocumentsToPost();
         if (found && found.length > 0) {
+          const ids = found.map((element) => {
+            return element._id;
+          });
+        
           logger.info(
             `Hay documentos laboral - servicio doméstico para notificar post IG`
           );
@@ -131,6 +136,7 @@ const startCronJobs = async () => {
             const caption =
               "Actualización laboral Ley 26.844 Personal de Casas Particulares\n #serviciodomestico #Ley26844 #aumentos #laboral #remuneraciones #actualizlaciones\n\n";
             await uploadCarouselMedia(imageUrls, caption);
+              const update = await updateNotifications(ids, [{postIG: true}]);
           }
         } else {
           logger.info(
