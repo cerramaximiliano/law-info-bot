@@ -89,7 +89,7 @@ const cronSchedules = {
 firstLaboralPost;
 
 const startCronJobs = async () => {
-  // Cron que notifica post de IG de datos laborales - servicios doméstic
+  // Cron que notifica post de IG de datos laborales - servicios doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomestico,
     async () => {
@@ -126,7 +126,7 @@ const startCronJobs = async () => {
             }
           } catch (error) {
             logger.error(
-              `Error generando o subiendo la primera imagen: ${error}`
+              `Error generando/subiendo la primera imagen laboral - sevicio doméstico: ${error}`
             );
             return;
           }
@@ -157,6 +157,7 @@ const startCronJobs = async () => {
                 "Actualización laboral Ley 26.844 Personal de Casas Particulares\n #serviciodomestico #Ley26844 #aumentos #laboral #remuneraciones #actualizlaciones\n\n";
               await uploadCarouselMedia(imageUrls, caption);
               await updateNotifications(ids, [{ postIG: true }]);
+              await deleteImage(imageIds);
             } catch (error) {
               logger.error(
                 `Error al subir carrusel o actualizar notificaciones: ${error.message}`
@@ -325,9 +326,14 @@ const startCronJobs = async () => {
               }
             }
             if (imageIds.length > 0 && imageUrls.length > 0) {
-              const caption =
-                "Actualización previsional ANSES\n #ANSES #Ley24241 #jubilaciones #pensiones #pbu #puam\n\n";
-              await uploadCarouselMedia(imageUrls, caption);
+              try {
+                const caption =
+                  "Actualización previsional ANSES\n #ANSES #Ley24241 #jubilaciones #pensiones #pbu #puam\n\n";
+                await uploadCarouselMedia(imageUrls, caption);
+                await deleteImage(imageIds);
+              } catch (error) {
+                logger.error(`Error subiendo post IG previsionales: ${error}`);
+              }
             }
           }
         }

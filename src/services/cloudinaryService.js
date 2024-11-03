@@ -23,18 +23,29 @@ const uploadImage = async (imagePath, folder = "default_folder") => {
   }
 };
 
-// Función para eliminar imágenes de Cloudinary
-const deleteImage = async (publicId) => {
+const deleteImage = async (publicIds) => {
   try {
-    const result = await cloudinary.uploader.destroy(publicId);
-    if (result.result === "ok") {
-      logger.info(`Imagen eliminada con éxito: ${publicId}`);
-    } else {
-      logger.warn(`No se encontró la imagen con public_id: ${publicId}`);
-    }
+    // Verificar si publicIds es un array o un string y convertir a array si es necesario
+    const ids = Array.isArray(publicIds) ? publicIds : [publicIds];
+    
+    const deletionResults = await Promise.all(
+      ids.map(async (publicId) => {
+        const result = await cloudinary.uploader.destroy(publicId);
+        if (result.result === "ok") {
+          logger.info(`Imagen eliminada con éxito: ${publicId}`);
+        } else {
+          logger.warn(`No se encontró la imagen con public_id: ${publicId}`);
+        }
+        return result;
+      })
+    );
+
+    // Filtrar y retornar solo las eliminaciones exitosas si deseas un resultado final
+    const successfulDeletions = deletionResults.filter(result => result.result === "ok");
+    return successfulDeletions;
   } catch (error) {
-    logger.error("Error al eliminar la imagen:", error);
-    throw new Error("Error al eliminar la imagen");
+    logger.error("Error al eliminar las imágenes:", error);
+    throw new Error("Error al eliminar las imágenes");
   }
 };
 
