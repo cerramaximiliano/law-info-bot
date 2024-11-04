@@ -145,8 +145,6 @@ async function updateNotifications(ids, notificationTypes) {
       return { ...acc, ...obj };
     }, {});
 
-    // Asegurar que siempre se incluya postIG: true
-    updateFields.postIG = true;
 
     // Actualizar los documentos con los IDs proporcionados
     const updatedDocuments = await ServicioDomestico.updateMany(
@@ -159,7 +157,7 @@ async function updateNotifications(ids, notificationTypes) {
     const result = await ServicioDomestico.find({ _id: { $in: ids } });
     return result;
   } catch (error) {
-    console.error("Error actualizando las notificaciones: ", error);
+    logger.error("Error actualizando las notificaciones: ", error);
     throw error;
   }
 }

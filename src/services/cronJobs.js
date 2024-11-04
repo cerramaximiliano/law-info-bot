@@ -80,7 +80,7 @@ const cronSchedules = {
 
   scrapingLaboral: "20 8 * * 1-5",
   notifyLaboralDomestico: "0 10 * * 1-5 ",
-  notifyLaboralDomesticoTelegram: "5 10 * * 1-5",
+  notifyLaboralDomesticoTelegram: "50 11 * * 1-5",
 
   notifyPrev: "15 9 * * 1-5",
   scrapingCourses: "0 19 * * 5",
@@ -94,8 +94,10 @@ const REGION_HOURS = {
   timezone: "America/Argentina/Buenos_Aires",
 };
 
-generateTelegramMessageDomesticos;
+
 const startCronJobs = async () => {
+
+
   // Cron que notifica en Telegram datos laborales - servicio doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomesticoTelegram,
@@ -109,13 +111,20 @@ const startCronJobs = async () => {
           logger.info(
             `Hay documentos para notificar datos laborales - servicio doméstico`
           );
+    
           for (let index = 0; index < found.length; index++) {
+            console.log(found[index]._id);
             const message = generateTelegramMessageDomesticos(found[index]);
             const messageId = await notifyUnnotifiedLaboral(message);
             if (messageId) {
               logger.info(
                 `Mensaje laboral - servicio doméstico enviado con éxito. ID del mensaje: ${messageId}`
               );
+              if (process.env.NODE_ENV === "production") {
+                await updateNotifications(found[index]._id, [
+                  { notifiedByTelegram: true },
+                ]);
+              }
             }
           }
         } else {
