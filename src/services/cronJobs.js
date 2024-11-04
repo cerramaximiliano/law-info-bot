@@ -77,7 +77,7 @@ const cronSchedules = {
   scrapingLegal: "15 8 * * 1-5",
 
   scrapingLaboral: "20 8 * * 1-5",
-  notifyLaboralDomestico: "30 9 * * 1-5 ",
+  notifyLaboralDomestico: "0 10 * * 1-5 ",
 
   notifyPrev: "15 9 * * 1-5",
   scrapingCourses: "0 19 * * 5",
@@ -90,11 +90,15 @@ firstLaboralPost;
 
 const startCronJobs = async () => {
   // Cron que notifica post de IG de datos laborales - servicios doméstico
+  const documents = await findDocumentsToPost({ postIG: false });
+
+  console.log(util.inspect(documents, { showHidden: false, depth: null, colors: true }));
+
   cron.schedule(
     cronSchedules.notifyLaboralDomestico,
     async () => {
       try {
-        const found = await findDocumentsToPost();
+        const found = await findDocumentsToPost({ postIG: false });
         if (found && found.length > 0) {
           const ids = found.map((element) => {
             return element._id;

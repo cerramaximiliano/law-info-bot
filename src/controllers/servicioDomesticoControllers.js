@@ -106,19 +106,25 @@ const buscarPorIds = async (ids) => {
   }
 };
 
-const findDocumentsToPost = async () => {
+const findDocumentsToPost = async (filterOptions = {}) => {
   try {
-    const results = await ServicioDomestico.find({ postIG: false });
-    if (results.length > 0) {
-      return results;
-    } else {
-      return [];
-    }
+    // Construir dinámicamente la consulta según las propiedades que se pasen en filterOptions
+    const query = {};
+
+    if (filterOptions.postIG === false) query.postIG = false;
+    if (filterOptions.notifiedByTelegram === false) query.notifiedByTelegram = false;
+    if (filterOptions.notifiedByWhatsApp === false) query.notifiedByWhatsApp = false;
+
+    // Ejecutar la consulta
+    const results = await ServicioDomestico.find(query).sort({ fecha: 1 });;
+
+    return results.length > 0 ? results : [];
   } catch (error) {
     logger.error(`Error al buscar documentos: ${error}`);
     throw new Error(error);
   }
 };
+
 
 async function updateNotifications(ids, notificationTypes) {
   try {

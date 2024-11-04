@@ -34,6 +34,31 @@ function generateTelegramMessage(title, results) {
   return message;
 }
 
+const generateTelegramMessageDomesticos = (entry) => {
+  let message =
+    "📢 *Actualización Ley 26.844 - Personal de Casas Particulares*\n\n";
+
+  // Fecha de la actualización
+  message += `📅 *Fecha:* ${new Date(entry.fecha).toLocaleDateString(
+    "es-AR"
+  )}\n\n`;
+
+  // Iterar sobre cada categoría
+  entry.categorias.forEach((categoria) => {
+    message += `🔹 *${categoria.categoria}*\n`;
+
+    categoria.tipos.forEach((tipo) => {
+      message += `  - *${tipo.tipo}*\n`;
+      message += `     • Valor Hora: $${tipo.valorHora}\n`;
+      message += `     • Valor Mensual: $${tipo.valorMensual}\n`;
+    });
+
+    message += `\n`; // Espacio entre categorías
+  });
+
+  return message;
+};
+
 function extractMontoAndPeriodo(dataArray) {
   dataArray.sort((a, b) => moment(a.vigencia) - moment(b.vigencia));
   return dataArray.map(({ monto, periodo }) => ({
@@ -81,7 +106,6 @@ function parseDateAndMonto(cell, type) {
   return null;
 }
 
-
 module.exports = {
   truncateText,
   formatPrice,
@@ -89,4 +113,5 @@ module.exports = {
   extractMontoAndPeriodo,
   getIdArray,
   parseDateAndMonto,
+  generateTelegramMessageDomesticos,
 };
