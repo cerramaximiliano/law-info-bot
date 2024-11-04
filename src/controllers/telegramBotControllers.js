@@ -173,8 +173,21 @@ const notifyUnnotifiedFees = async (message, ids, type) => {
     await markAsNotified(ids, type);
     logger.info("Fee marcada como notificada");
   }
+};
 
-
+const notifyUnnotifiedLaboral = async (message) => {
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const topicId = process.env.TELEGRAM_TOPIC_LABORAL_ID;
+  try {
+    const messageId = await bot.sendMessage(chatId, message, {
+      parse_mode: "Markdown",
+      message_thread_id: topicId,
+    });
+    return messageId.message_id;
+  } catch (error) {
+    logger.error(`Error Telegram al notificar mensaje laboral`);
+    throw new Error(error);
+  }
 };
 
 module.exports = {
@@ -182,4 +195,5 @@ module.exports = {
   notifyUpcomingCourses,
   notifyUpcomingUBACourses,
   notifyUnnotifiedFees,
+  notifyUnnotifiedLaboral,
 };

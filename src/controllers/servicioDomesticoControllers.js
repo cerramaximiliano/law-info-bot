@@ -106,7 +106,7 @@ const buscarPorIds = async (ids) => {
   }
 };
 
-const findDocumentsToPost = async (filterOptions = {}) => {
+const findDocumentsToPostOrNotify = async (filterOptions = {}) => {
   try {
     // Construir dinámicamente la consulta según las propiedades que se pasen en filterOptions
     const query = {};
@@ -169,6 +169,6 @@ module.exports = {
   guardarDatosAgrupados,
   obtenerUltimaFecha,
   buscarPorIds,
-  findDocumentsToPost,
+  findDocumentsToPostOrNotify,
   updateNotifications,
 };

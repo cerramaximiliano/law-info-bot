@@ -22,6 +22,7 @@ const {
   notifyUpcomingCourses,
   notifyUpcomingUBACourses,
   notifyUnnotifiedFees,
+  notifyUnnotifiedLaboral,
 } = require("../controllers/telegramBotControllers");
 const { logger, clearLogs } = require("../config/logger");
 const {
@@ -36,6 +37,7 @@ const {
   getIdArray,
 } = require("../utils/formatText");
 const { renderTables, example } = require("../utils/formatHTML");
+const { generateTelegramMessageDomesticos } = require("../utils/formatText");
 const { generateScreenshot } = require("../utils/generateImages");
 const {
   newFeesPosts,
@@ -63,7 +65,7 @@ const {
   guardarDatosAgrupados,
   obtenerUltimaFecha,
   buscarPorIds,
-  findDocumentsToPost,
+  findDocumentsToPostOrNotify,
   updateNotifications,
 } = require("../controllers/servicioDomesticoControllers");
 const util = require("util");
@@ -78,6 +80,7 @@ const cronSchedules = {
 
   scrapingLaboral: "20 8 * * 1-5",
   notifyLaboralDomestico: "0 10 * * 1-5 ",
+  notifyLaboralDomesticoTelegram: "5 10 * * 1-5",
 
   notifyPrev: "15 9 * * 1-5",
   scrapingCourses: "0 19 * * 5",
@@ -86,15 +89,55 @@ const cronSchedules = {
   notifyNewCoursesHours: "0 9 16 * *",
   cleanLogsHours: "0 0 15,30 * *",
 };
-firstLaboralPost;
+const REGION_HOURS = {
+  scheduled: true,
+  timezone: "America/Argentina/Buenos_Aires",
+};
 
+generateTelegramMessageDomesticos;
 const startCronJobs = async () => {
+  // Cron que notifica en Telegram datos laborales - servicio doméstico
+  cron.schedule(
+    cronSchedules.notifyLaboralDomesticoTelegram,
+    async () => {
+      try {
+        logger.info(`Cron que notifica datos laborales - servicio doméstico`);
+        const found = await findDocumentsToPostOrNotify({
+          notifiedByTelegram: false,
+        });
+        if (found.length > 0) {
+          logger.info(
+            `Hay documentos para notificar datos laborales - servicio doméstico`
+          );
+          for (let index = 0; index < found.length; index++) {
+            const message = generateTelegramMessageDomesticos(found[index]);
+            const messageId = await notifyUnnotifiedLaboral(message);
+            if (messageId) {
+              logger.info(
+                `Mensaje laboral - servicio doméstico enviado con éxito. ID del mensaje: ${messageId}`
+              );
+            }
+          }
+        } else {
+          logger.error(
+            `No hay documentos para notificar datos laborales - servicio doméstico`
+          );
+        }
+      } catch (error) {
+        logger.error(
+          `Error al notificar datos laborales - servicio doméstico: ${error}`
+        );
+      }
+    },
+    REGION_HOURS
+  );
+
   // Cron que notifica post de IG de datos laborales - servicios doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomestico,
     async () => {
       try {
-        const found = await findDocumentsToPost({ postIG: false });
+        const found = await findDocumentsToPostOrNotify({ postIG: false });
         if (found && found.length > 0) {
           const ids = found.map((element) => {
             return element._id;
@@ -175,10 +218,7 @@ const startCronJobs = async () => {
         );
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
 
   // Cron que hace scraping sobre datos laborales - servicios doméstico
@@ -207,10 +247,7 @@ const startCronJobs = async () => {
         logger.error(`Error en la tarea de servicio doméstico: ${error}`);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
 
   // Cron que hace scraping sobre datos laborales - servicio doméstico
@@ -247,10 +284,7 @@ const startCronJobs = async () => {
         logger.error(`Error en la tarea de servicio doméstico`);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
 
   // Cron que hace scraping sobre datos previsionales
@@ -288,10 +322,7 @@ const startCronJobs = async () => {
         logger.error(`Error al realizar tarea de scraping de leyes: ${error}`);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
   // Cron que notifica datos previsionales por IG
   cron.schedule(
@@ -343,10 +374,7 @@ const startCronJobs = async () => {
         );
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
 
   // Cron que envia mensajes Noticias a Telegram bot no notificados
@@ -361,10 +389,7 @@ const startCronJobs = async () => {
         logger.error(`Error en tarea de envío de mensajes: ${err}`);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
 
   // Cron que envia mensajes Normativa con Telegram bot no notificados
@@ -379,24 +404,25 @@ const startCronJobs = async () => {
         logger.error(`Error en tarea de envío de mensajes: ${err}`);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
 
   // Cron que hace scraping en Noticias
-  cron.schedule(cronSchedules.scrapingNoticias, async () => {
-    try {
-      logger.info("Tarea de web scraping de noticias iniciada");
-      await scrapeNoticias();
-      await scrapeElDial();
-      await scrapeHammurabi();
-      logger.info("Tarea de web scraping finalizada");
-    } catch (err) {
-      logger.error("Error en tarea de web scraping:", err);
-    }
-  });
+  cron.schedule(
+    cronSchedules.scrapingNoticias,
+    async () => {
+      try {
+        logger.info("Tarea de web scraping de noticias iniciada");
+        await scrapeNoticias();
+        await scrapeElDial();
+        await scrapeHammurabi();
+        logger.info("Tarea de web scraping finalizada");
+      } catch (err) {
+        logger.error("Error en tarea de web scraping:", err);
+      }
+    },
+    REGION_HOURS
+  );
 
   // Cron que hace scraping en Normativa
   cron.schedule(
@@ -410,10 +436,7 @@ const startCronJobs = async () => {
         logger.error("Error en la tarea de web scraping Saij:", err);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
 
   // Cron que hace scraping en valores Fees Nación y Fees CABA
@@ -430,10 +453,7 @@ const startCronJobs = async () => {
         logger.error("Error en la tarea de web scraping fees:", err);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires",
-    }
+    REGION_HOURS
   );
 
   // Cron que busca Cursos
@@ -451,10 +471,7 @@ const startCronJobs = async () => {
         logger.error(`Error en la tarea de scraping de diplomados: ${error}`);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
-    }
+    REGION_HOURS
   );
 
   // Cron que notifica fees nuevos en Telegram y envía IG posts
@@ -507,10 +524,7 @@ const startCronJobs = async () => {
         logger.error(`Error notificación de fees nuevos`);
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
-    }
+    REGION_HOURS
   );
 
   // Cron que notifica cursos los días 15 de cada mes
@@ -531,10 +545,7 @@ const startCronJobs = async () => {
         );
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
-    }
+    REGION_HOURS
   );
   // Cron que notifica cursos los días 15 de cada mes
   cron.schedule(
@@ -554,18 +565,19 @@ const startCronJobs = async () => {
         );
       }
     },
-    {
-      scheduled: true,
-      timezone: "America/Argentina/Buenos_Aires", // Configura la zona horaria de Argentina
-    }
+    REGION_HOURS
   );
 
   // Cron que limpia el archivo de Logs
-  cron.schedule(cronSchedules.cleanLogsHours, () => {
-    logger.log("Se ejecuta limpieza de logs");
-    clearLogs();
-    cleanDirectory("./src/files");
-  });
+  cron.schedule(
+    cronSchedules.cleanLogsHours,
+    async () => {
+      logger.log("Se ejecuta limpieza de logs");
+      clearLogs();
+      cleanDirectory("./src/files");
+    },
+    REGION_HOURS
+  );
 };
 
 module.exports = { startCronJobs };
