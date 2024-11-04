@@ -90,10 +90,6 @@ firstLaboralPost;
 
 const startCronJobs = async () => {
   // Cron que notifica post de IG de datos laborales - servicios doméstico
-  const documents = await findDocumentsToPost({ postIG: false });
-
-  console.log(util.inspect(documents, { showHidden: false, depth: null, colors: true }));
-
   cron.schedule(
     cronSchedules.notifyLaboralDomestico,
     async () => {
