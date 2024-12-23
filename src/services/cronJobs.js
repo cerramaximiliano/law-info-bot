@@ -84,7 +84,7 @@ const cronSchedules = {
 
   notifyPrev: "15 9 * * 1-5",
   scrapingCourses: "0 19 * * 5",
-  feesNotificationHours: "0 9 * * 1-5",
+  feesNotificationHours: "10 10 * * 1-5",
   notifyCoursesHours: "0 9 15 * *",
   notifyNewCoursesHours: "0 9 16 * *",
   cleanLogsHours: "0 0 15,30 * *",
@@ -94,10 +94,7 @@ const REGION_HOURS = {
   timezone: "America/Argentina/Buenos_Aires",
 };
 
-
 const startCronJobs = async () => {
-
-
   // Cron que notifica en Telegram datos laborales - servicio doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomesticoTelegram,
@@ -111,7 +108,7 @@ const startCronJobs = async () => {
           logger.info(
             `Hay documentos para notificar datos laborales - servicio doméstico`
           );
-    
+
           for (let index = 0; index < found.length; index++) {
             console.log(found[index]._id);
             const message = generateTelegramMessageDomesticos(found[index]);
@@ -499,6 +496,7 @@ const startCronJobs = async () => {
           );
           const array = extractMontoAndPeriodo(fees);
           const htmlCode = newFeesPosts(array, "2", ["UMA", "Ley Nº 27.423 "]);
+
           const generatedFile = await generateScreenshot(htmlCode);
           const image = await uploadImage(`./src/files/${generatedFile}`);
           const imageId = image.public_id;
@@ -508,6 +506,8 @@ const startCronJobs = async () => {
           await deleteImage(imageId);
           const ids = getIdArray(fees);
           const notify = await notifyUnnotifiedFees(message, ids, "fees");
+        } else {
+          logger.info(`No hay fees PJN para notificar`);
         }
         // Notificar fees CABA
         const feesCABA = await findUnnotifiedFees(FeesValuesCaba);
@@ -528,6 +528,8 @@ const startCronJobs = async () => {
           await deleteImage(imageId);
           const ids = getIdArray(lastFees);
           const notify = await notifyUnnotifiedFees(message, ids, "feesCaba");
+        } else {
+          logger.info(`No hay fees CABA para notificar`);
         }
       } catch (err) {
         logger.error(`Error notificación de fees nuevos`);

@@ -86,11 +86,12 @@ async function saveFeesValuesAfterLastVigenciaCaba(data) {
 }
 
 async function findUnnotifiedFees(Model) {
-  const today = moment().startOf("day").toDate();
+  const firstDayOfMonth = moment.utc().startOf("month").toDate();
+  console.log(firstDayOfMonth);
   try {
     const results = await Model.find({
       notifiedByTelegram: false,
-      fecha: { $gte: today },
+      vigencia: firstDayOfMonth,
     });
     return results;
   } catch (err) {
