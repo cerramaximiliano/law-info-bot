@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { logger } = require("../config/logger");
+const { sendEmailController } = require("./emailControllers");
 const accessToken = process.env.IG_API_TOKEN;
 const instagramAccountId = process.env.IG_ACCOUNT_ID;
 
@@ -131,4 +132,29 @@ const uploadCarouselMedia = async (imageUrls, caption) => {
   }
 };
 
-module.exports = { uploadMedia, uploadCarouselMedia };
+async function checkTokenExpiration(token) {
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v21.0/debug_token?input_token=${token}&access_token=${token}`
+    );
+    console.log(response);
+    const data = await response.json();
+
+    const currentTime = Math.floor(Date.now() / 1000);
+    const expiresAt = data.data?.expires_at;
+
+    return {
+      isValid: data.data?.is_valid || false,
+      expiresAt,
+      daysUntilExpiration: expiresAt
+        ? Math.floor((expiresAt - currentTime) / 86400)
+        : "Never",
+      type: data.data?.type,
+      app: data.data?.application,
+    };
+  } catch (error) {
+    return { isValid: false, error: error.message };
+  }
+}
+
+module.exports = { uploadMedia, uploadCarouselMedia, checkTokenExpiration };

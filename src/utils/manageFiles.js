@@ -31,4 +31,16 @@ const loadFile = (filePath) => {
   }
 };
 
-module.exports = { cleanDirectory, loadFile };
+
+async function cleanupLocalFile(filePath) {
+  try {
+    await fs.unlink(filePath);
+    logger.info(`Archivo eliminado correctamente: ${filePath}`);
+    return true;
+  } catch (error) {
+    logger.error(`Error eliminando archivo: ${filePath}:`, error);
+    return false;
+  }
+}
+
+module.exports = { cleanDirectory, loadFile, cleanupLocalFile };

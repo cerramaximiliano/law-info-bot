@@ -55,7 +55,7 @@ const {
   findUnscrapedLegal,
   findByIdAndUpdateScrapedAndData,
 } = require("../controllers/legalControllers");
-const { cleanDirectory } = require("../utils/manageFiles");
+const { cleanDirectory, cleanupLocalFile } = require("../utils/manageFiles");
 const { extractData, iterateTextByLine } = require("../utils/readFile");
 const { askQuestion } = require("./chatgpt");
 const moment = require("moment");
@@ -498,8 +498,11 @@ const startCronJobs = async () => {
           const array = extractMontoAndPeriodo(fees);
           const htmlCode = newFeesPosts(array, "2", ["UMA", "Ley Nº 27.423 "]);
 
+          const localFilePath = `./src/files/${generatedFile}`;
           const generatedFile = await generateScreenshot(htmlCode);
-          const image = await uploadImage(`./src/files/${generatedFile}`);
+          const image = await uploadImage(localFilePath);
+
+
           const imageId = image.public_id;
           const caption =
             "Nuevos valores UMA Ley Nº 27.423 \n#UMA #PoderJudicial #Aranceles #Honorarios\n\n";
@@ -510,7 +513,7 @@ const startCronJobs = async () => {
             ids
           );
           await deleteImage(imageId);
-
+          await cleanupLocalFile(localFilePath);
           const notify = await notifyUnnotifiedFees(message, ids, "fees");
         } else {
           logger.info(`No hay fees PJN para notificar`);

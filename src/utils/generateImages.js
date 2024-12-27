@@ -38,19 +38,16 @@ async function generateScreenshot(html) {
 
     const element = await page.$(".container");
 
-    // Generar timestamp con fecha y hora
     const timestamp = new Date().toISOString().replace(/:/g, "-");
     const fileName = `container-screenshot-${timestamp}.png`;
     const screenshotDir = path.join(__dirname, "..", "files"); // ".." para salir de "utils" y entrar a "files" dentro de "src"
     const screenshotPath = path.join(screenshotDir, fileName);
 
-    // Verifica si la carpeta 'src/files' existe, y si no, la crea
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
     logger.info(`Haciendo screenshot`);
-    await delay(200000);
-    // Captura solo el contenido del nodo "container"
+    await delay(10000);
     await element.screenshot({
       path: screenshotPath,
     });
@@ -60,7 +57,7 @@ async function generateScreenshot(html) {
     logger.error(`Error en la generación del post: ${err}`);
   } finally {
     if (browser) {
-      //await browser.close();
+      await browser.close();
     }
   }
 }

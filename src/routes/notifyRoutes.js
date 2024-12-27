@@ -3,8 +3,12 @@ const router = express.Router();
 const { logger } = require("../config/logger");
 const { findUnnotifiedFees } = require("../controllers/feesControllers");
 const { generateScreenshot } = require("../utils/generateImages");
+const { cleanupLocalFile } = require("../utils/manageFiles");
 const { uploadImage, deleteImage } = require("../services/cloudinaryService");
-const { uploadMedia } = require("../controllers/igControllers");
+const {
+  uploadMedia,
+  checkTokenExpiration,
+} = require("../controllers/igControllers");
 const { newFeesPosts } = require("../posts/instagramPosts");
 const FeesModel = require("../models/feesValues");
 const FeesValuesCaba = require("../models/feesValuesCaba");
@@ -17,9 +21,15 @@ const {
   notifyUnnotifiedFees,
 } = require("../controllers/telegramBotControllers");
 
+const accessToken = process.env.IG_API_TOKEN;
+const instagramAccountId = process.env.IG_ACCOUNT_ID;
+
 router.get("/update-fees", async (req, res) => {
   try {
     const { force = false } = req.query;
+
+    const checkToken = await checkTokenExpiration(accessToken);
+    console.log(checkToken);
 
     logger.info("Iniciada tarea de notificación de fees");
     const response = {
@@ -42,7 +52,8 @@ router.get("/update-fees", async (req, res) => {
       const array = extractMontoAndPeriodo(fees);
       const htmlCode = newFeesPosts(array, "2", ["UMA", "Ley Nº 27.423 "]);
       const generatedFile = await generateScreenshot(htmlCode);
-      /* const image = await uploadImage(`./src/files/${generatedFile}`);
+      const localFilePath = `./src/files/${generatedFile}`;
+      const image = await uploadImage(localFilePath);
       const imageId = image.public_id;
       const caption =
         "Nuevos valores UMA Ley Nº 27.423 \n#UMA #PoderJudicial #Aranceles #Honorarios\n\n";
@@ -54,7 +65,8 @@ router.get("/update-fees", async (req, res) => {
         ids
       );
       await deleteImage(imageId);
-      const telegramSuccess = await notifyUnnotifiedFees(message, ids, "fees"); */
+      await cleanupLocalFile(localFilePath);
+      const telegramSuccess = await notifyUnnotifiedFees(message, ids, "fees");
 
       response.pjn.telegram = telegramSuccess;
       response.pjn.instagram = igSuccess;
@@ -74,7 +86,8 @@ router.get("/update-fees", async (req, res) => {
       const htmlCode = newFeesPosts(array, "2", ["UMA CABA", "Ley 5.134"]);
 
       const generatedFile = await generateScreenshot(htmlCode);
-      const image = await uploadImage(`./src/files/${generatedFile}`);
+      const localFilePath = `./src/files/${generatedFile}`;
+      const image = await uploadImage(localFilePath);
       const imageId = image.public_id;
       const caption =
         "Nuevos valores UMA CABA Ley Nº 5.134 \n#UMA #PoderJudicialCABA #Aranceles #Honorarios\n\n";
@@ -86,6 +99,7 @@ router.get("/update-fees", async (req, res) => {
         ids
       );
       await deleteImage(imageId);
+      await cleanupLocalFile(localFilePath);
       const telegramSuccess = await notifyUnnotifiedFees(
         message,
         ids,
@@ -100,7 +114,6 @@ router.get("/update-fees", async (req, res) => {
     res.status(200).json(response);
   } catch (error) {
     logger.error("Error en notificación de fees nuevos:", error);
-    console.log(error);
     res.status(500).json({
       error: "Error al procesar la actualización de fees",
       details: error.message,
