@@ -4,14 +4,14 @@ const fs = require("fs");
 const { logger } = require("../config/logger");
 
 function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 let browser;
 async function generateScreenshot(html) {
   try {
     browser = await puppeteer.launch({
-      headless: true,
+      headless: false,
       args: [
         "--no-sandbox",
         "--start-maximized",
@@ -48,18 +48,19 @@ async function generateScreenshot(html) {
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
-    delay(150000)
+    logger.info(`Haciendo screenshot`);
+    await delay(200000);
     // Captura solo el contenido del nodo "container"
     await element.screenshot({
       path: screenshotPath,
     });
-
+    logger.info(`Screenshot tomado`);
     return fileName;
   } catch (err) {
     logger.error(`Error en la generación del post: ${err}`);
   } finally {
     if (browser) {
-      await browser.close();
+      //await browser.close();
     }
   }
 }

@@ -490,6 +490,7 @@ const startCronJobs = async () => {
         const fees = await findUnnotifiedFees(FeesModel);
         if (fees && fees.length > 0) {
           logger.info("Hay fees para notitificar");
+          const ids = getIdArray(fees);
           const message = generateTelegramMessage(
             "Actualización UMA PJN Ley 27.423",
             fees
@@ -502,9 +503,14 @@ const startCronJobs = async () => {
           const imageId = image.public_id;
           const caption =
             "Nuevos valores UMA Ley Nº 27.423 \n#UMA #PoderJudicial #Aranceles #Honorarios\n\n";
-          const mediaId = await uploadMedia(image.secure_url, caption);
+          const mediaId = await uploadMedia(
+            image.secure_url,
+            caption,
+            FeesModel,
+            ids
+          );
           await deleteImage(imageId);
-          const ids = getIdArray(fees);
+
           const notify = await notifyUnnotifiedFees(message, ids, "fees");
         } else {
           logger.info(`No hay fees PJN para notificar`);
@@ -532,6 +538,7 @@ const startCronJobs = async () => {
           logger.info(`No hay fees CABA para notificar`);
         }
       } catch (err) {
+        console.log(err);
         logger.error(`Error notificación de fees nuevos`);
       }
     },

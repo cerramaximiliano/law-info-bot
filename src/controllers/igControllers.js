@@ -3,15 +3,14 @@ const { logger } = require("../config/logger");
 const accessToken = process.env.IG_API_TOKEN;
 const instagramAccountId = process.env.IG_ACCOUNT_ID;
 
-  
-const uploadMedia = async (imageUrl, caption) => {
+const uploadMedia = async (imageUrl, caption, Model, ids) => {
   try {
     // Paso 1: Crear un objeto de medios
     const responseMedia = await axios.post(
       `https://graph.facebook.com/v17.0/${instagramAccountId}/media`,
       {
         image_url: imageUrl, // URL de la imagen
-        caption: caption // Descripción que acompañará a la imagen
+        caption: caption, // Descripción que acompañará a la imagen
       },
       {
         headers: {
@@ -43,11 +42,19 @@ const uploadMedia = async (imageUrl, caption) => {
     );
 
     logger.info("Publicación exitosa:", responsePublish.data);
+    if (Model && ids) {
+      await Model.findOneAndUpdate(
+        { _id: { $in: ids } },
+        { postIG: true },
+        { new: true }
+      );
+    }
   } catch (error) {
     logger.error(
       "Error al subir la imagen:",
       error.response ? error.response.data : error.message
     );
+    console.log(error);
   }
 };
 

@@ -8,7 +8,7 @@ dotenv.config({ path: envFile });
 const express = require("express");
 const app = express();
 const PORT = process.env.PORT ? process.env.PORT : 3004;
-const cronRoutes = require("./src/routes/cronRoutes")
+const routes = require("./src/routes");
 
 const connectDB = require("./src/config/db");
 const { startCronJobs } = require("./src/services/cronJobs");
@@ -24,7 +24,7 @@ app.listen(PORT, () => {
 });
 
 app.use(express.static(path.join(__dirname, "public")));
-app.use('/api/cron', cronRoutes);
+app.use(routes);
 
 // Ruta para renderizar el archivo HTML de la landing page
 app.get("/", (req, res) => {
