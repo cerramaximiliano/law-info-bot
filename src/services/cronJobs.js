@@ -84,7 +84,7 @@ const cronSchedules = {
   notifyLaboralDomestico: "0 10 * * 1-5 ",
   notifyLaboralDomesticoTelegram: "20 13 * * 1-5",
 
-  notifyPrev: "15 9 * * 1-5",
+  notifyPrev: "00 14 * * 1-5",
   scrapingCourses: "0 19 * * 5",
   feesNotificationHours: "10 10 * * 1-5",
   notifyCoursesHours: "0 9 15 * *",
@@ -95,7 +95,6 @@ const REGION_HOURS = {
   scheduled: true,
   timezone: "America/Argentina/Buenos_Aires",
 };
-
 
 const startCronJobs = async () => {
   // Cron que notifica en Telegram datos laborales - servicio doméstico
@@ -378,6 +377,7 @@ const startCronJobs = async () => {
           }
         }
       } catch (error) {
+        console.log(error);
         logger.error(
           `Error al realizar tarea de notificación previsional: ${error}`
         );
@@ -505,7 +505,6 @@ const startCronJobs = async () => {
           const localFilePath = `./src/files/${generatedFile}`;
           const generatedFile = await generateScreenshot(htmlCode);
           const image = await uploadImage(localFilePath);
-
 
           const imageId = image.public_id;
           const caption =

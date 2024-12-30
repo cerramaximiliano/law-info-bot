@@ -675,18 +675,19 @@ const prevPost = (data) => {
         background-color: #1b2a41;
       }
 
-      .content {
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        margin-top: 30px;
-        flex-grow: 1;
-      }
+.content {
+    display: flex;
+    align-items: center;
+    margin-top: 30px;
+    flex-grow: 1;
+}
 
       .box {
         max-height: fit-content;
         background-color: transparent;
-        width: 45%;
+        margin: 0 auto;
+        text-align: center;
+        width: 100%;
         padding: 25px;
         display: flex;
         flex-direction: column;
@@ -701,6 +702,8 @@ const prevPost = (data) => {
         margin-bottom: 10px;
         font-weight: bold;
         position: relative;
+        white-space: nowrap;
+        font-size: clamp(3rem, 6.5vw, 6.5rem);
       }
 
       .date {
@@ -1164,4 +1167,9 @@ const secondLaboralTablePost = (table, urlImage) => {
   `;
 };
 
-module.exports = { newFeesPosts, prevPost, firstLaboralPost, secondLaboralTablePost };
+module.exports = {
+  newFeesPosts,
+  prevPost,
+  firstLaboralPost,
+  secondLaboralTablePost,
+};

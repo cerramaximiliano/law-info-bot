@@ -30,7 +30,9 @@ const findUnscrapedLegal = async (type) => {
     const results = await LegalLinks.find({ type, scraped: false }).sort({
       fecha: 1,
     });
-    logger.info(`Se encontraron ${results.length} LEGAL links ${type} no scrapeados`);
+    logger.info(
+      `Se encontraron ${results.length} LEGAL links ${type} no scrapeados`
+    );
     return results;
   } catch (error) {
     throw new Error(error);
@@ -46,7 +48,7 @@ const findByIdAndUpdateScrapedAndData = async (id, newData) => {
       postIG: false,
       $push: { data: { $each: newData } },
     });
-    logger.log(`Documento LEGAL con ID ${id} actualizado correctamente.`);
+    logger.info(`Documento LEGAL con ID ${id} actualizado correctamente.`);
   } catch (error) {
     throw new Error(error);
   }
