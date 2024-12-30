@@ -22,14 +22,16 @@ const {
 } = require("../controllers/telegramBotControllers");
 
 const accessToken = process.env.IG_API_TOKEN;
-const instagramAccountId = process.env.IG_ACCOUNT_ID;
 
 router.get("/update-fees", async (req, res) => {
   try {
     const { force = false } = req.query;
 
-    const checkToken = await checkTokenExpiration(accessToken);
-    console.log(checkToken);
+    const { daysUntilExpiration } = await checkTokenExpiration(accessToken);
+    if (!daysUntilExpiration || daysUntilExpiration <= 0) {
+      logger.info(`Token Meta expirado.`);
+      return;
+    }
 
     logger.info("Iniciada tarea de notificación de fees");
     const response = {

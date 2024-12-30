@@ -3,6 +3,7 @@ const { logger } = require("../config/logger");
 const { sendEmailController } = require("./emailControllers");
 const accessToken = process.env.IG_API_TOKEN;
 const instagramAccountId = process.env.IG_ACCOUNT_ID;
+const admin = process.env.ADMIN_EMAIL;
 
 const uploadMedia = async (imageUrl, caption, Model, ids) => {
   try {
@@ -10,8 +11,8 @@ const uploadMedia = async (imageUrl, caption, Model, ids) => {
     const responseMedia = await axios.post(
       `https://graph.facebook.com/v17.0/${instagramAccountId}/media`,
       {
-        image_url: imageUrl, // URL de la imagen
-        caption: caption, // Descripción que acompañará a la imagen
+        image_url: imageUrl,
+        caption: caption,
       },
       {
         headers: {
@@ -30,7 +31,7 @@ const uploadMedia = async (imageUrl, caption, Model, ids) => {
     const responsePublish = await axios.post(
       `https://graph.facebook.com/v17.0/${instagramAccountId}/media_publish`,
       {
-        creation_id: mediaId, // El ID del medio creado en el paso anterior
+        creation_id: mediaId,
       },
       {
         headers: {
@@ -50,12 +51,14 @@ const uploadMedia = async (imageUrl, caption, Model, ids) => {
         { new: true }
       );
     }
+    return true; // Return true on successful execution
   } catch (error) {
     logger.error(
       "Error al subir la imagen:",
       error.response ? error.response.data : error.message
     );
     console.log(error);
+    return false; // Return false on error
   }
 };
 
@@ -137,18 +140,24 @@ async function checkTokenExpiration(token) {
     const response = await fetch(
       `https://graph.facebook.com/v21.0/debug_token?input_token=${token}&access_token=${token}`
     );
-    console.log(response);
     const data = await response.json();
 
     const currentTime = Math.floor(Date.now() / 1000);
     const expiresAt = data.data?.expires_at;
+    const daysUntilExpiration = expiresAt
+      ? Math.floor((expiresAt - currentTime) / 86400)
+      : "Never";
+
+    if (daysUntilExpiration <= 10) {
+      const emailText = `Quedan ${daysUntilExpiration} días para el vencimiento del token de Meta.`;
+      const subjectText = `[ACTION REQUIRED] META token expiration`;
+      await sendEmailController(admin, emailText, subjectText);
+    }
 
     return {
       isValid: data.data?.is_valid || false,
       expiresAt,
-      daysUntilExpiration: expiresAt
-        ? Math.floor((expiresAt - currentTime) / 86400)
-        : "Never",
+      daysUntilExpiration: daysUntilExpiration,
       type: data.data?.type,
       app: data.data?.application,
     };

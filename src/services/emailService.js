@@ -1,6 +1,6 @@
 const { SendEmailCommand } = require("@aws-sdk/client-ses");
 const sesClient = require("../config/awsConfig");
-const logger = require("../utils/logger");
+const { logger } = require("../config/logger");
 
 // Función para enviar correos electrónicos
 const sendEmail = async (to, subject, htmlBody, textBody) => {

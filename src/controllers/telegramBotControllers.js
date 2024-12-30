@@ -162,16 +162,24 @@ const notifyUpcomingUBACourses = async () => {
 };
 
 const notifyUnnotifiedFees = async (message, ids, type) => {
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  const topicId = process.env.TELEGRAM_TOPIC_ID;
-  await bot.sendMessage(chatId, message, {
-    parse_mode: "Markdown",
-    message_thread_id: topicId,
-  });
+  try {
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    const topicId = process.env.TELEGRAM_TOPIC_ID;
+    
+    await bot.sendMessage(chatId, message, {
+      parse_mode: "Markdown",
+      message_thread_id: topicId,
+    });
 
-  if (process.env.NODE_ENV === "production") {
-    await markAsNotified(ids, type);
-    logger.info("Fee marcada como notificada");
+    if (process.env.NODE_ENV === "production") {
+      await markAsNotified(ids, type);
+      logger.info("Fee marcada como notificada");
+    }
+    
+    return true; // Return true on successful execution
+  } catch (error) {
+    logger.error("Error notificando fees:", error);
+    return false; // Return false on error
   }
 };
 

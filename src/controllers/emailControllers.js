@@ -1,5 +1,6 @@
+const { logger } = require("../config/logger");
 const { sendEmail } = require("../services/emailService");
-const logger = require("../utils/logger");
+
 
 // Controlador para enviar correos electrónicos
 const sendEmailController = async (to, textBody, subject) => {

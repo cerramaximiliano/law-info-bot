@@ -48,6 +48,7 @@ const {
 const {
   uploadMedia,
   uploadCarouselMedia,
+  checkTokenExpiration,
 } = require("../controllers/igControllers");
 const { uploadImage, deleteImage } = require("./cloudinaryService");
 const {
@@ -69,6 +70,7 @@ const {
   updateNotifications,
 } = require("../controllers/servicioDomesticoControllers");
 const util = require("util");
+const accessToken = process.env.IG_API_TOKEN;
 
 const cronSchedules = {
   notifyNews: "30 10 * * 1-5",
@@ -93,6 +95,7 @@ const REGION_HOURS = {
   scheduled: true,
   timezone: "America/Argentina/Buenos_Aires",
 };
+
 
 const startCronJobs = async () => {
   // Cron que notifica en Telegram datos laborales - servicio doméstico
@@ -486,6 +489,7 @@ const startCronJobs = async () => {
     async () => {
       try {
         logger.info(`Iniciada tarea de notificación de fees`);
+        const checkToken = await checkTokenExpiration(accessToken);
         // Notificar fees Nación
         const fees = await findUnnotifiedFees(FeesModel);
         if (fees && fees.length > 0) {
