@@ -11,7 +11,7 @@ let browser;
 async function generateScreenshot(html) {
   try {
     browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       args: [
         "--no-sandbox",
         "--start-maximized",
