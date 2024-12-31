@@ -84,7 +84,7 @@ const cronSchedules = {
   notifyLaboralDomestico: "0 10 * * 1-5 ",
   notifyLaboralDomesticoTelegram: "20 13 * * 1-5",
 
-  notifyPrev: "50 21 * * 1-5",
+  notifyPrev: "20 10 * * 1-5",
   scrapingCourses: "0 19 * * 5",
   feesNotificationHours: "10 10 * * 1-5",
   notifyCoursesHours: "0 9 15 * *",
