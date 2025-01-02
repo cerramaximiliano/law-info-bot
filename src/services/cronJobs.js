@@ -86,7 +86,7 @@ const cronSchedules = {
 
   notifyPrev: "10 10 * * 1-5",
   scrapingCourses: "0 19 * * 5",
-  feesNotificationHours: "10 10 * * 1-5",
+  feesNotificationHours: "46 16 * * 1-5",
   notifyCoursesHours: "0 9 15 * *",
   notifyNewCoursesHours: "0 9 16 * *",
   cleanLogsHours: "0 0 15,30 * *",
@@ -538,7 +538,7 @@ const startCronJobs = async () => {
             "Nuevos valores UMA CABA Ley Nº 5.134 \n#UMA #PoderJudicialCABA #Aranceles #Honorarios\n\n";
           const mediaId = await uploadMedia(image.secure_url, caption);
           await deleteImage(imageId);
-          const ids = getIdArray(lastFees);
+          const ids = getIdArray(feesCABA);
           const notify = await notifyUnnotifiedFees(message, ids, "feesCaba");
         } else {
           logger.info(`No hay fees CABA para notificar`);
