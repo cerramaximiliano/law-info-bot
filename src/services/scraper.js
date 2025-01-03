@@ -168,12 +168,12 @@ const scrapeInfojus = async () => {
         // Si no existe, lo guarda en la base de datos
         const newsItem = new News(article);
         await newsItem.save();
-        console.log(`Artículo guardado: ${article.title}`);
+        logger.info(`Artículo guardado: ${article.title}`);
       } else {
-        console.log(`Artículo ya existe: ${article.title}`);
+        logger.info(`Artículo : ${article.title}`);
       }
     } catch (error) {
-      console.error(`Error guardando artículo: ${article.title}`, error);
+      logger.error(`Error guardando artículo: ${article.title}`, error);
     }
   }
 
@@ -235,12 +235,12 @@ const scrapeElDial = async () => {
         // Si no existe, lo guarda en la base de datos
         const newsItem = new News(article);
         await newsItem.save();
-        console.log(`Artículo guardado: ${article.title}`);
+        logger.info(`Artículo guardado: ${article.title}`);
       } else {
-        console.log(`Artículo ya existe: ${article.title}`);
+        logger.info(`Artículo ya existe: ${article.title}`);
       }
     } catch (error) {
-      console.error(`Error guardando artículo: ${article.title}`, error);
+      logger.error(`Error guardando artículo: ${article.title}`, error);
     }
   }
 
@@ -301,12 +301,12 @@ const scrapeHammurabi = async () => {
           siteId: article.siteId,
         });
         await newsItem.save();
-        console.log(`Artículo guardado: ${article.title}`);
+        logger.info(`Artículo guardado: ${article.title}`);
       } else {
-        console.log(`Artículo ya existe: ${article.title}`);
+        logger.info(`Artículo ya existe: ${article.title}`);
       }
     } catch (error) {
-      console.error(`Error guardando artículo: ${article.title}`, error);
+      logger.error(`Error guardando artículo: ${article.title}`, error);
     }
   }
 
@@ -598,7 +598,7 @@ const scrapeDiplomados = async () => {
 
     await browser.close();
   } catch (error) {
-    console.log(error);
+    logger.error(error);
     logger.error("Error durante el scraping:", error);
   }
 };
@@ -1196,7 +1196,7 @@ const scrapePrevisionalLink = async (link) => {
         "No se encontraron elementos que comiencen con 'ARTÍCULO'. Verificar la estructura del DOM."
       );
     }
-    console.log(articles);
+    logger.info(articles);
     // Extraer los datos específicos de cada artículo
     const extractedData = articles
       .map((article, index) => {
