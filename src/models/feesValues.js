@@ -8,7 +8,7 @@ const feesValues = new mongoose.Schema({
   vigencia: Date,
   organization: String,
   type: String,
-  postIG: { type: Boolean, deafault: false },
+  postIG: { type: Boolean, default: false },
   notifiedByTelegram: { type: Boolean, default: false }, // Indica si fue notificado por el bot de Telegram
   notificationDate: { type: Date, default: null },
 });

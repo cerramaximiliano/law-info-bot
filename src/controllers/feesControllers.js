@@ -91,6 +91,7 @@ async function findUnnotifiedFees(Model, findOptions) {
 
     const results = await Model.find({
       ...findOptions,
+      postIG: false,
       vigencia: firstDayOfMonth,
     });
     return results;
