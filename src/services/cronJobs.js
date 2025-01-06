@@ -103,6 +103,7 @@ const REGION_HOURS = {
 const admin = process.env.ADMIN_EMAIL;
 
 const startCronJobs = async () => {
+  
   // Reporte diario de logs
   cron.schedule(
     cronSchedules.loggerReportHours,
@@ -110,8 +111,16 @@ const startCronJobs = async () => {
       try {
         const analyzer = new LogAnalyzer("src/logs/app.log");
         const report = await analyzer.generateReport(new Date());
+        const count = await analyzer.countAppInitializations();
+        console.log(
+          `Inicializaciones hoy: ${report.summary.appInitializations}`
+        );
         const textReport = formatLogReportEmail(report);
-        sendEmailController(admin, textReport, `[LOG REPORT] LAW BOT ${moment().format("DD-MM-YYYY")}`)
+        sendEmailController(
+          admin,
+          textReport,
+          `[LOG REPORT] LAW BOT ${moment().format("DD-MM-YYYY")}`
+        );
       } catch (error) {
         logWithDetails.error(`Error logger report: ${error}`);
       }

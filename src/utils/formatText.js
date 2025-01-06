@@ -133,6 +133,7 @@ Total de logs: ${report.summary.totalLogs}
 Errores: ${report.summary.errorCount}
 Advertencias: ${report.summary.warnCount}
 Archivos afectados: ${report.summary.filesAffected}
+Inicializaciones de la aplicación: ${report.summary.appInitializations}
 
 ARCHIVOS CRÍTICOS
 ----------------

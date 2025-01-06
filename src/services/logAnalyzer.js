@@ -12,21 +12,25 @@ class LogAnalyzer {
         
         const dateStr = date.toISOString().split('T')[0];
         const dailyLogs = lines.filter(line => line.includes(dateStr));
+        
+        // Contar inicializaciones
+        const appInitializations = dailyLogs.filter(line => 
+            line.toLowerCase().includes('aplicación iniciada')
+        ).length;
 
         const analysis = {
             total: dailyLogs.length,
             byLevel: {},
             byFile: {},
-            errorDetails: []
+            errorDetails: [],
+            appInitializations
         };
 
         dailyLogs.forEach(log => {
             const { level, file, line, message } = this.parseLine(log);
             
-            // Count by level
             analysis.byLevel[level] = (analysis.byLevel[level] || 0) + 1;
             
-            // Group by file
             if (file) {
                 if (!analysis.byFile[file]) {
                     analysis.byFile[file] = {
@@ -40,13 +44,11 @@ class LogAnalyzer {
                 analysis.byFile[file].lineNumbers.add(line);
             }
 
-            // Collect error details
             if (level === 'error') {
                 analysis.errorDetails.push({ file, line, message });
             }
         });
 
-        // Convert Sets to Arrays for JSON serialization
         Object.values(analysis.byFile).forEach(fileData => {
             fileData.lineNumbers = Array.from(fileData.lineNumbers);
         });
@@ -76,7 +78,6 @@ class LogAnalyzer {
         const ERROR_THRESHOLD = 3;
         const WARN_THRESHOLD = 5;
 
-        // Analyze files with high error counts
         Object.entries(analysis.byFile)
             .filter(([_, data]) => (data.byLevel.error || 0) >= ERROR_THRESHOLD)
             .forEach(([file, data]) => {
@@ -88,7 +89,6 @@ class LogAnalyzer {
                 });
             });
 
-        // Analyze files with high warning counts
         Object.entries(analysis.byFile)
             .filter(([_, data]) => (data.byLevel.warn || 0) >= WARN_THRESHOLD)
             .forEach(([file, data]) => {
@@ -104,18 +104,15 @@ class LogAnalyzer {
     }
 
     async generateReport(date = new Date()) {
-        // Si no se proporciona fecha, usa el día actual
         const analysis = await this.analyzeByDate(date);
-        
-        // Añadir fecha de generación del reporte
-        const reportTimestamp = new Date().toISOString();
         const report = {
             date: analysis.date,
             summary: {
                 totalLogs: analysis.total,
                 errorCount: analysis.byLevel.error || 0,
                 warnCount: analysis.byLevel.warn || 0,
-                filesAffected: Object.keys(analysis.byFile).length
+                filesAffected: Object.keys(analysis.byFile).length,
+                appInitializations: analysis.appInitializations
             },
             criticalFiles: Object.entries(analysis.byFile)
                 .filter(([_, data]) => data.byLevel.error > 0)
