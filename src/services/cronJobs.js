@@ -35,6 +35,7 @@ const {
   generateTelegramMessage,
   extractMontoAndPeriodo,
   getIdArray,
+  formatLogReportEmail,
 } = require("../utils/formatText");
 const { renderTables, example } = require("../utils/formatHTML");
 const { generateTelegramMessageDomesticos } = require("../utils/formatText");
@@ -70,6 +71,8 @@ const {
   updateNotifications,
 } = require("../controllers/servicioDomesticoControllers");
 const util = require("util");
+const LogAnalyzer = require("./logAnalyzer");
+const { sendEmailController } = require("../controllers/emailControllers");
 const accessToken = process.env.IG_API_TOKEN;
 
 const cronSchedules = {
@@ -90,17 +93,32 @@ const cronSchedules = {
   notifyCoursesHours: "0 9 15 * *",
   notifyNewCoursesHours: "0 9 16 * *",
   cleanLogsHours: "0 0 15,30 * *",
+  loggerReportHours: "59 23 * * 1-5",
 };
 const REGION_HOURS = {
   scheduled: true,
   timezone: "America/Argentina/Buenos_Aires",
 };
 
+const admin = process.env.ADMIN_EMAIL;
+
 const startCronJobs = async () => {
-
   // Reporte diario de logs
+  cron.schedule(
+    cronSchedules.loggerReportHours,
+    async () => {
+      try {
+        const analyzer = new LogAnalyzer("src/logs/app.log");
+        const report = await analyzer.generateReport(new Date());
+        const textReport = formatLogReportEmail(report);
+        sendEmailController(admin, textReport, `[LOG REPORT] LAW BOT ${moment().format("DD-MM-YYYY")}`)
+      } catch (error) {
+        logWithDetails.error(`Error logger report: ${error}`);
+      }
+    },
+    REGION_HOURS
+  );
 
-  
   // Cron que notifica en Telegram datos laborales - servicio doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomesticoTelegram,

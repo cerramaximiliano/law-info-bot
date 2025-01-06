@@ -1,7 +1,6 @@
 const { logWithDetails } = require("../config/logger");
 const { sendEmail } = require("../services/emailService");
 
-
 // Controlador para enviar correos electrónicos
 const sendEmailController = async (to, textBody, subject) => {
   // Validación de parámetros requeridos
@@ -10,7 +9,10 @@ const sendEmailController = async (to, textBody, subject) => {
     return { error: "Se requiere 'to' y 'textBody'" };
   }
 
-  const htmlBody = `<p>${textBody}</p>`; // Convierte el texto a HTML básico
+  const htmlBody = textBody
+    .split("\n")
+    .map((line) => `<p>${line}</p>`)
+    .join("\n");
 
   try {
     const result = await sendEmail(to, subject, htmlBody, textBody);

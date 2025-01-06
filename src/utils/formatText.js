@@ -106,6 +106,48 @@ function parseDateAndMonto(cell, type) {
   return null;
 }
 
+function formatLogReportEmail(report) {
+  const criticalFilesText = report.criticalFiles
+    .map(
+      (file) =>
+        `- ${file.file}: ${file.errors} errores, ${
+          file.warnings
+        } advertencias en líneas: ${file.lines.join(", ")}\n`
+    )
+    .join("\n");
+
+  const recommendationsText = report.recommendations
+    .map((rec) => `[${rec.priority}] ${rec.file}: ${rec.message}\n`)
+    .join("\n");
+
+  const errorDetailsText = report.errorDetails
+    .map((error) => `- ${error.file}:${error.line} - ${error.message}\n`)
+    .join("\n");
+
+  return `
+Reporte de Logs - ${report.date}
+
+RESUMEN
+-------
+Total de logs: ${report.summary.totalLogs}
+Errores: ${report.summary.errorCount}
+Advertencias: ${report.summary.warnCount}
+Archivos afectados: ${report.summary.filesAffected}
+
+ARCHIVOS CRÍTICOS
+----------------
+${criticalFilesText}
+
+RECOMENDACIONES
+--------------
+${recommendationsText}
+
+DETALLES DE ERRORES
+------------------
+${errorDetailsText}
+`;
+}
+
 module.exports = {
   truncateText,
   formatPrice,
@@ -114,4 +156,5 @@ module.exports = {
   getIdArray,
   parseDateAndMonto,
   generateTelegramMessageDomesticos,
+  formatLogReportEmail,
 };
