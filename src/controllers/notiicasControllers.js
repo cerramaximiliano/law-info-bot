@@ -1,4 +1,4 @@
-const {logger} = require("../config/logger");
+const {logWithDetails} = require("../config/logger");
 const Acts = require("../models/acts");
 const FeesModel = require("../models/feesValues");
 const FeesValuesCaba = require("../models/feesValuesCaba");
@@ -22,9 +22,9 @@ async function saveNewNews(newsArray, siteId) {
     } catch (err) {
       if (err.code === 11000) {
         // Código de error para duplicados
-        logger.info(`Noticia duplicada no guardada: ${news.title}`);
+        logWithDetails.info(`Noticia duplicada no guardada: ${news.title}`);
       } else {
-        logger.error(`Error al guardar la noticia: ${news.title}`, err);
+        logWithDetails.error(`Error al guardar la noticia: ${news.title}`, err);
       }
     }
   }
@@ -41,10 +41,10 @@ async function getUnnotifiedNews(type = "news") {
     } else {
       unnotified = await Acts.find({ notifiedByTelegram: false });
     }
-    logger.info(`Unnotified ${type} ${unnotified.length}`)
+    logWithDetails.info(`Unnotified ${type} ${unnotified.length}`)
     return unnotified;
   } catch (err) {
-    logger.error(`Error al buscar ${type} no notificadas:`, err);
+    logWithDetails.error(`Error al buscar ${type} no notificadas:`, err);
     throw err;
   }
 }
@@ -95,7 +95,7 @@ async function markAsNotified(newsId, type = "news") {
     }
     return updatedElements;
   } catch (err) {
-    logger.error("Error al actualizar la notificación de la noticia/norma/fee:", err);
+    logWithDetails.error("Error al actualizar la notificación de la noticia/norma/fee:", err);
     throw err;
   }
 }

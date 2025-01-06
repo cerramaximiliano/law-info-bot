@@ -1,4 +1,4 @@
-const {logger} = require("../config/logger");
+const {logWithDetails} = require("../config/logger");
 const Courses = require("../models/courses"); // Importa el modelo de Courses
 const moment = require("moment"); // Importa moment.js para manejar fechas
 
@@ -20,7 +20,7 @@ const getUpcomingCoursesNotNotified = async () => {
     // Devuelve los cursos encontrados
     return courses
   } catch (error) {
-    logger.error(`Error en obtener registros de actividades: ${error}`);
+    logWithDetails.error(`Error en obtener registros de actividades: ${error}`);
     throw new Error (error)
   }
 };

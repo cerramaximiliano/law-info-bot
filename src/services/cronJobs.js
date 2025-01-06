@@ -24,7 +24,7 @@ const {
   notifyUnnotifiedFees,
   notifyUnnotifiedLaboral,
 } = require("../controllers/telegramBotControllers");
-const { logger, clearLogs } = require("../config/logger");
+const { logWithDetails, clearLogs } = require("../config/logger");
 const {
   findUnnotifiedFees,
   findLatestFees,
@@ -97,17 +97,23 @@ const REGION_HOURS = {
 };
 
 const startCronJobs = async () => {
+
+  // Reporte diario de logs
+
+  
   // Cron que notifica en Telegram datos laborales - servicio doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomesticoTelegram,
     async () => {
       try {
-        logger.info(`Cron que notifica datos laborales - servicio doméstico`);
+        logWithDetails.info(
+          `Cron que notifica datos laborales - servicio doméstico`
+        );
         const found = await findDocumentsToPostOrNotify({
           notifiedByTelegram: false,
         });
         if (found.length > 0) {
-          logger.info(
+          logWithDetails.info(
             `Hay documentos para notificar datos laborales - servicio doméstico`
           );
 
@@ -116,7 +122,7 @@ const startCronJobs = async () => {
             const message = generateTelegramMessageDomesticos(found[index]);
             const messageId = await notifyUnnotifiedLaboral(message);
             if (messageId) {
-              logger.info(
+              logWithDetails.info(
                 `Mensaje laboral - servicio doméstico enviado con éxito. ID del mensaje: ${messageId}`
               );
               if (process.env.NODE_ENV === "production") {
@@ -127,12 +133,12 @@ const startCronJobs = async () => {
             }
           }
         } else {
-          logger.error(
+          logWithDetails.error(
             `No hay documentos para notificar datos laborales - servicio doméstico`
           );
         }
       } catch (error) {
-        logger.error(
+        logWithDetails.error(
           `Error al notificar datos laborales - servicio doméstico: ${error}`
         );
       }
@@ -151,7 +157,7 @@ const startCronJobs = async () => {
             return element._id;
           });
 
-          logger.info(
+          logWithDetails.info(
             `Hay documentos laboral - servicio doméstico para notificar post IG`
           );
           const tables = renderTables(found);
@@ -176,7 +182,7 @@ const startCronJobs = async () => {
               imageIds.push(image.public_id);
             }
           } catch (error) {
-            logger.error(
+            logWithDetails.error(
               `Error generando/subiendo la primera imagen laboral - sevicio doméstico: ${error}`
             );
             return;
@@ -195,7 +201,7 @@ const startCronJobs = async () => {
                   imageIds.push(image.public_id);
                 }
               } catch (error) {
-                logger.error(
+                logWithDetails.error(
                   `Error generando o subiendo imagen de la tabla: ${error.message}`
                 );
               }
@@ -210,18 +216,18 @@ const startCronJobs = async () => {
               await updateNotifications(ids, [{ postIG: true }]);
               await deleteImage(imageIds);
             } catch (error) {
-              logger.error(
+              logWithDetails.error(
                 `Error al subir carrusel o actualizar notificaciones: ${error.message}`
               );
             }
           }
         } else {
-          logger.info(
+          logWithDetails.info(
             `No hay documentos para notificar laboral - servicio doméstico`
           );
         }
       } catch (error) {
-        logger.error(
+        logWithDetails.error(
           `Error en notificación laboral - servicio doméstico posts IG`
         );
       }
@@ -236,7 +242,7 @@ const startCronJobs = async () => {
       try {
         // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> TODO
         // ELIMINAR EL SCRAPING Y SOLO BUSCAR LOS ELEMENTOS NUEVOS Y NO NOTIFICADOS
-        logger.info(`Tarea de scraping de servicio doméstico iniciado`);
+        logWithDetails.info(`Tarea de scraping de servicio doméstico iniciado`);
         const lastData = await obtenerUltimaFecha();
         const resultsDomesticos = await scrapeDomesticos(
           process.env.LABORAL_PAGE_2,
@@ -247,12 +253,14 @@ const startCronJobs = async () => {
             resultsDomesticos
           );
           const save = await guardarDatosAgrupados(resultsGrouped);
-          logger.info(
+          logWithDetails.info(
             `Documentos laboral servicio domestico: Guardados insertos ${save.result.nUpserted} , encontrados ${save.result.nMatched}, modificados ${save.result.nModified}`
           );
         }
       } catch (error) {
-        logger.error(`Error en la tarea de servicio doméstico: ${error}`);
+        logWithDetails.error(
+          `Error en la tarea de servicio doméstico: ${error}`
+        );
       }
     },
     REGION_HOURS
@@ -263,7 +271,7 @@ const startCronJobs = async () => {
     cronSchedules.scrapingLaboral,
     async () => {
       try {
-        logger.info(`Tarea de scraping de servicio doméstico iniciado`);
+        logWithDetails.info(`Tarea de scraping de servicio doméstico iniciado`);
         const lastData = await obtenerUltimaFecha();
         const resultsDomesticos = await scrapeDomesticos(
           process.env.LABORAL_PAGE_2,
@@ -275,21 +283,21 @@ const startCronJobs = async () => {
             resultsDomesticos
           );
           const save = await guardarDatosAgrupados(resultsGrouped);
-          logger.info(
+          logWithDetails.info(
             `Documentos laboral servicio domestico: Guardados insertos ${save.result.nUpserted} , encontrados ${save.result.nMatched}, modificados ${save.result.nModified}`
           );
           if (save.result.upserted && save.result.upserted.length > 0) {
-            logger.info(
+            logWithDetails.info(
               `Hay nuevos recursos laboral servicio doméstico para notificar`
             );
           }
         } else {
-          logger.info(
+          logWithDetails.info(
             `No se han encontrados actualizaciones laborales servicio doméstico`
           );
         }
       } catch (error) {
-        logger.error(`Error en la tarea de servicio doméstico`);
+        logWithDetails.error(`Error en la tarea de servicio doméstico`);
       }
     },
     REGION_HOURS
@@ -299,7 +307,7 @@ const startCronJobs = async () => {
   cron.schedule(
     cronSchedules.scrapingLegal,
     async () => {
-      logger.info("Tarea de scraping de leyes iniciado");
+      logWithDetails.info("Tarea de scraping de leyes iniciado");
       try {
         let resultPrevisional = await scrapeLegalPage(
           process.env.PREV_PAGE_1,
@@ -327,7 +335,9 @@ const startCronJobs = async () => {
           resultLaboralDomestico
         );
       } catch (error) {
-        logger.error(`Error al realizar tarea de scraping de leyes: ${error}`);
+        logWithDetails.error(
+          `Error al realizar tarea de scraping de leyes: ${error}`
+        );
       }
     },
     REGION_HOURS
@@ -340,7 +350,7 @@ const startCronJobs = async () => {
         let results = await findUnscrapedLegal("previsional- aumentos");
         if (results.length > 0) {
           const resultsData = await scrapePrevisionalLink(results[0].link);
-          logger.info(
+          logWithDetails.info(
             `Tarea de scraping de link previsional. ID: ${results[0]._id}`
           );
           await findByIdAndUpdateScrapedAndData(results[0]._id, resultsData);
@@ -358,7 +368,7 @@ const startCronJobs = async () => {
                 imageIds.push(imageId);
                 imageUrls.push(image.secure_url);
               } catch (error) {
-                logger.error(
+                logWithDetails.error(
                   `Error procesando el elemento en el índice ${index}:`,
                   error
                 );
@@ -371,14 +381,16 @@ const startCronJobs = async () => {
                 await uploadCarouselMedia(imageUrls, caption);
                 await deleteImage(imageIds);
               } catch (error) {
-                logger.error(`Error subiendo post IG previsionales: ${error}`);
+                logWithDetails.error(
+                  `Error subiendo post IG previsionales: ${error}`
+                );
               }
             }
           }
         }
       } catch (error) {
         console.log(error);
-        logger.error(
+        logWithDetails.error(
           `Error al realizar tarea de notificación previsional: ${error}`
         );
       }
@@ -391,11 +403,11 @@ const startCronJobs = async () => {
     cronSchedules.notifyNews,
     async () => {
       try {
-        logger.info("Tarea de envío de mensajes de bot iniciada");
+        logWithDetails.info("Tarea de envío de mensajes de bot iniciada");
         await notifyUnnotifiedNews();
-        logger.info("Tarea de envío de mensajes de bot finalizada");
+        logWithDetails.info("Tarea de envío de mensajes de bot finalizada");
       } catch (err) {
-        logger.error(`Error en tarea de envío de mensajes: ${err}`);
+        logWithDetails.error(`Error en tarea de envío de mensajes: ${err}`);
       }
     },
     REGION_HOURS
@@ -406,11 +418,11 @@ const startCronJobs = async () => {
     cronSchedules.notifyNewsHours,
     async () => {
       try {
-        logger.info("Tarea de envío de mensajes de bot iniciada");
+        logWithDetails.info("Tarea de envío de mensajes de bot iniciada");
         await notifyUnnotifiedNews("acts", 3, 40);
-        logger.info("Tarea de envío de mensajes de bot finalizada");
+        logWithDetails.info("Tarea de envío de mensajes de bot finalizada");
       } catch (err) {
-        logger.error(`Error en tarea de envío de mensajes: ${err}`);
+        logWithDetails.error(`Error en tarea de envío de mensajes: ${err}`);
       }
     },
     REGION_HOURS
@@ -421,13 +433,13 @@ const startCronJobs = async () => {
     cronSchedules.scrapingNoticias,
     async () => {
       try {
-        logger.info("Tarea de web scraping de noticias iniciada");
+        logWithDetails.info("Tarea de web scraping de noticias iniciada");
         await scrapeNoticias();
         await scrapeElDial();
         await scrapeHammurabi();
-        logger.info("Tarea de web scraping finalizada");
+        logWithDetails.info("Tarea de web scraping finalizada");
       } catch (err) {
-        logger.error("Error en tarea de web scraping:", err);
+        logWithDetails.error("Error en tarea de web scraping:", err);
       }
     },
     REGION_HOURS
@@ -438,11 +450,11 @@ const startCronJobs = async () => {
     cronSchedules.scrapingActs,
     async () => {
       try {
-        logger.info("Tarea de web scraping de normas iniciada");
+        logWithDetails.info("Tarea de web scraping de normas iniciada");
         await scrapeSaij();
-        logger.info("Tarea de web scraping de normas finalizada");
+        logWithDetails.info("Tarea de web scraping de normas finalizada");
       } catch (err) {
-        logger.error("Error en la tarea de web scraping Saij:", err);
+        logWithDetails.error("Error en la tarea de web scraping Saij:", err);
       }
     },
     REGION_HOURS
@@ -453,13 +465,13 @@ const startCronJobs = async () => {
     cronSchedules.scrapingFees,
     async () => {
       try {
-        logger.info("Tarea de web scraping de fees iniciada");
+        logWithDetails.info("Tarea de web scraping de fees iniciada");
         await scrapeFeesData();
         await scrapeFeesDataCABA();
         await scrapeFeesDataBsAs();
-        logger.info("Tarea de web scraping de fees finalizada");
+        logWithDetails.info("Tarea de web scraping de fees finalizada");
       } catch (err) {
-        logger.error("Error en la tarea de web scraping fees:", err);
+        logWithDetails.error("Error en la tarea de web scraping fees:", err);
       }
     },
     REGION_HOURS
@@ -470,14 +482,20 @@ const startCronJobs = async () => {
     cronSchedules.scrapingCourses,
     async () => {
       try {
-        logger.info("Tarea de scraping de diplomados y cursos iniciada");
+        logWithDetails.info(
+          "Tarea de scraping de diplomados y cursos iniciada"
+        );
         await scrapeDiplomados(); // Llama a la función de scraping
         await scrapeGPCourses();
         await scrapeUBATalleres();
         await scrapeUBAProgramas();
-        logger.info("Tarea de scraping de diplomados y cursos finalizada");
+        logWithDetails.info(
+          "Tarea de scraping de diplomados y cursos finalizada"
+        );
       } catch (error) {
-        logger.error(`Error en la tarea de scraping de diplomados: ${error}`);
+        logWithDetails.error(
+          `Error en la tarea de scraping de diplomados: ${error}`
+        );
       }
     },
     REGION_HOURS
@@ -488,12 +506,12 @@ const startCronJobs = async () => {
     cronSchedules.feesNotificationHours,
     async () => {
       try {
-        logger.info(`Iniciada tarea de notificación de fees`);
+        logWithDetails.info(`Iniciada tarea de notificación de fees`);
         const checkToken = await checkTokenExpiration(accessToken);
         // Notificar fees Nación
         const fees = await findUnnotifiedFees(FeesModel);
         if (fees && fees.length > 0) {
-          logger.info("Hay fees para notitificar");
+          logWithDetails.info("Hay fees para notitificar");
           const ids = getIdArray(fees);
           const message = generateTelegramMessage(
             "Actualización UMA PJN Ley 27.423",
@@ -519,12 +537,12 @@ const startCronJobs = async () => {
           await cleanupLocalFile(localFilePath);
           const notify = await notifyUnnotifiedFees(message, ids, "fees");
         } else {
-          logger.info(`No hay fees PJN para notificar`);
+          logWithDetails.info(`No hay fees PJN para notificar`);
         }
         // Notificar fees CABA
         const feesCABA = await findUnnotifiedFees(FeesValuesCaba);
         if (feesCABA && feesCABA.length > 0) {
-          logger.info("Hay feesCaba para notitificar");
+          logWithDetails.info("Hay feesCaba para notitificar");
           const message = generateTelegramMessage(
             "Actualización UMA CABA Ley 5.134",
             feesCABA
@@ -541,11 +559,11 @@ const startCronJobs = async () => {
           const ids = getIdArray(feesCABA);
           const notify = await notifyUnnotifiedFees(message, ids, "feesCaba");
         } else {
-          logger.info(`No hay fees CABA para notificar`);
+          logWithDetails.info(`No hay fees CABA para notificar`);
         }
       } catch (err) {
         console.log(err);
-        logger.error(`Error notificación de fees nuevos`);
+        logWithDetails.error(`Error notificación de fees nuevos`);
       }
     },
     REGION_HOURS
@@ -556,15 +574,15 @@ const startCronJobs = async () => {
     cronSchedules.notifyCoursesHours,
     async () => {
       try {
-        logger.info(
+        logWithDetails.info(
           "Tarea de notificación de cursos/diplomados programada para el día 15 de cada mes iniciada"
         );
         await notifyUpcomingCourses(); // Llama a la función que deseas ejecutar
-        logger.info(
+        logWithDetails.info(
           "Tarea programada de cursos/diplomados para el día 15 de cada mes finalizada"
         );
       } catch (error) {
-        logger.error(
+        logWithDetails.error(
           `Error en la tarea de notificación de cursos/diplomados programada para el día 15: ${error}`
         );
       }
@@ -576,15 +594,15 @@ const startCronJobs = async () => {
     cronSchedules.notifyNewCoursesHours,
     async () => {
       try {
-        logger.info(
+        logWithDetails.info(
           "Tarea de notificación de cursos/diplomados programada para el día 15 de cada mes iniciada"
         );
         await notifyUpcomingUBACourses(); // Llama a la función que deseas ejecutar
-        logger.info(
+        logWithDetails.info(
           "Tarea programada de cursos/diplomados para el día 15 de cada mes finalizada"
         );
       } catch (error) {
-        logger.error(
+        logWithDetails.error(
           `Error en la tarea de notificación de cursos/diplomados programada para el día 15: ${error}`
         );
       }
@@ -596,7 +614,7 @@ const startCronJobs = async () => {
   cron.schedule(
     cronSchedules.cleanLogsHours,
     async () => {
-      logger.log("Se ejecuta limpieza de logs");
+      logWithDetails.log("Se ejecuta limpieza de logs");
       clearLogs();
       cleanDirectory("./src/files");
     },

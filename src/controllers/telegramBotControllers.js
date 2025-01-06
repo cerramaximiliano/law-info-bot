@@ -1,4 +1,4 @@
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 const Courses = require("../models/courses");
 const { bot } = require("../services/bot");
 const { truncateText } = require("../utils/formatText");
@@ -27,11 +27,11 @@ async function notifyUnnotifiedNews(type = "news", limit = 5, interval = 30) {
         parse_mode: "Markdown",
         message_thread_id: topicId,
       });
-      logger.info("Noticia/Norma notificada por telegram");
+      logWithDetails.info("Noticia/Norma notificada por telegram");
       // Marca la noticia como notificada en la base de datos
       if (process.env.NODE_ENV === "production") {
         await markAsNotified(newsItem._id, type);
-        logger.info("Noticia/Norma marcada como notificada");
+        logWithDetails.info("Noticia/Norma marcada como notificada");
       }
 
       // Si no es la última noticia, espera 5 minutos antes de enviar la siguiente
@@ -42,7 +42,7 @@ async function notifyUnnotifiedNews(type = "news", limit = 5, interval = 30) {
       }
     }
   } catch (err) {
-    logger.error("Error al notificar noticias no notificadas:", err);
+    logWithDetails.error("Error al notificar noticias no notificadas:", err);
   }
 }
 
@@ -58,7 +58,7 @@ const notifyUpcomingCourses = async () => {
     });
 
     if (courses.length === 0) {
-      logger.info("No hay cursos para notificar.");
+      logWithDetails.info("No hay cursos para notificar.");
       return;
     }
 
@@ -95,9 +95,9 @@ const notifyUpcomingCourses = async () => {
       }
     }
 
-    logger.info("Notificación enviada y cursos actualizados.");
+    logWithDetails.info("Notificación enviada y cursos actualizados.");
   } catch (error) {
-    logger.error("Error al notificar los cursos:", error);
+    logWithDetails.error("Error al notificar los cursos:", error);
   }
 };
 
@@ -114,7 +114,7 @@ const notifyUpcomingUBACourses = async () => {
     });
 
     if (courses.length === 0) {
-      logger.info("No hay cursos de UBA Derecho para notificar.");
+      logWithDetails.info("No hay cursos de UBA Derecho para notificar.");
       return;
     }
 
@@ -153,11 +153,11 @@ const notifyUpcomingUBACourses = async () => {
       }
     }
 
-    logger.info(
+    logWithDetails.info(
       "Notificación de cursos de UBA Derecho enviada y cursos actualizados."
     );
   } catch (error) {
-    logger.error("Error al notificar los cursos de UBA Derecho:", error);
+    logWithDetails.error("Error al notificar los cursos de UBA Derecho:", error);
   }
 };
 
@@ -173,12 +173,12 @@ const notifyUnnotifiedFees = async (message, ids, type) => {
 
     if (process.env.NODE_ENV === "production") {
       await markAsNotified(ids, type);
-      logger.info("Fee marcada como notificada");
+      logWithDetails.info("Fee marcada como notificada");
     }
     
     return true; // Return true on successful execution
   } catch (error) {
-    logger.error("Error notificando fees:", error);
+    logWithDetails.error("Error notificando fees:", error);
     return false; // Return false on error
   }
 };
@@ -193,7 +193,7 @@ const notifyUnnotifiedLaboral = async (message) => {
     });
     return messageId.message_id;
   } catch (error) {
-    logger.error(`Error Telegram al notificar mensaje laboral`);
+    logWithDetails.error(`Error Telegram al notificar mensaje laboral`);
     throw new Error(error);
   }
 };

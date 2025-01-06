@@ -1,4 +1,4 @@
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 const LegalLinks = require("../models/legalLinks");
 
 async function saveLegalLinks(resultados) {
@@ -14,10 +14,10 @@ async function saveLegalLinks(resultados) {
 
   try {
     const result = await LegalLinks.bulkWrite(operacionesBulk);
-    logger.info(`Operaciones LEGAL links bulk ejecutadas: ${result.nInserted}`);
+    logWithDetails.info(`Operaciones LEGAL links bulk ejecutadas: ${result.nInserted}`);
     return result;
   } catch (error) {
-    logger.error(
+    logWithDetails.error(
       "Error al realizar las operaciones bulk en la base de datos LEGAL:",
       error
     );
@@ -30,7 +30,7 @@ const findUnscrapedLegal = async (type) => {
     const results = await LegalLinks.find({ type, scraped: false }).sort({
       fecha: 1,
     });
-    logger.info(
+    logWithDetails.info(
       `Se encontraron ${results.length} LEGAL links ${type} no scrapeados`
     );
     return results;
@@ -48,7 +48,7 @@ const findByIdAndUpdateScrapedAndData = async (id, newData) => {
       postIG: false,
       $push: { data: { $each: newData } },
     });
-    logger.info(`Documento LEGAL con ID ${id} actualizado correctamente.`);
+    logWithDetails.info(`Documento LEGAL con ID ${id} actualizado correctamente.`);
   } catch (error) {
     throw new Error(error);
   }

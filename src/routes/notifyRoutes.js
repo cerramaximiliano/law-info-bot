@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 const { findUnnotifiedFees } = require("../controllers/feesControllers");
 const { generateScreenshot } = require("../utils/generateImages");
 const { cleanupLocalFile } = require("../utils/manageFiles");
@@ -29,11 +29,11 @@ router.get("/update-fees", async (req, res) => {
 
     const { daysUntilExpiration } = await checkTokenExpiration(accessToken);
     if (!daysUntilExpiration || daysUntilExpiration <= 0) {
-      logger.info(`Token Meta expirado.`);
+      logWithDetails.info(`Token Meta expirado.`);
       return;
     }
 
-    logger.info("Iniciada tarea de notificación de fees");
+    logWithDetails.info("Iniciada tarea de notificación de fees");
     const response = {
       pjn: { telegram: false, instagram: false },
       caba: { telegram: false, instagram: false },
@@ -45,7 +45,7 @@ router.get("/update-fees", async (req, res) => {
     // Notificar fees Nación
     const fees = await findUnnotifiedFees(FeesModel, findOptions);
     if (fees?.length > 0) {
-      logger.info("Hay fees para notificar");
+      logWithDetails.info("Hay fees para notificar");
       const ids = getIdArray(fees);
       const message = generateTelegramMessage(
         "Actualización UMA PJN Ley 27.423",
@@ -78,7 +78,7 @@ router.get("/update-fees", async (req, res) => {
     // Notificar fees CABA
     const feesCABA = await findUnnotifiedFees(FeesValuesCaba, findOptions);
     if (feesCABA?.length > 0) {
-      logger.info("Hay feesCaba para notificar");
+      logWithDetails.info("Hay feesCaba para notificar");
       const ids = getIdArray(feesCABA);
       const message = generateTelegramMessage(
         "Actualización UMA CABA Ley 5.134",
@@ -115,7 +115,7 @@ router.get("/update-fees", async (req, res) => {
 
     res.status(200).json(response);
   } catch (error) {
-    logger.error("Error en notificación de fees nuevos:", error);
+    logWithDetails.error("Error en notificación de fees nuevos:", error);
     res.status(500).json({
       error: "Error al procesar la actualización de fees",
       details: error.message,

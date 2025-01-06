@@ -1,7 +1,7 @@
 const puppeteer = require("puppeteer");
 const path = require("path");
 const fs = require("fs");
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,15 +46,15 @@ async function generateScreenshot(html) {
     if (!fs.existsSync(screenshotDir)) {
       fs.mkdirSync(screenshotDir, { recursive: true });
     }
-    logger.info(`Haciendo screenshot`);
+    logWithDetails.info(`Haciendo screenshot`);
     await delay(10000);
     await element.screenshot({
       path: screenshotPath,
     });
-    logger.info(`Screenshot tomado`);
+    logWithDetails.info(`Screenshot tomado`);
     return fileName;
   } catch (err) {
-    logger.error(`Error en la generación del post: ${err}`);
+    logWithDetails.error(`Error en la generación del post: ${err}`);
   } finally {
     if (browser) {
       await browser.close();

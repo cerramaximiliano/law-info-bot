@@ -1,4 +1,4 @@
-const {logger} = require("../config/logger");
+const {logWithDetails} = require("../config/logger");
 const Tracking = require("../models/tracking");
 
 const saveOrUpdateTrackingData = async (
@@ -13,7 +13,7 @@ const saveOrUpdateTrackingData = async (
     const tracking = await Tracking.findOne({ trackingCode, userId });
 
     if (tracking) {
-      logger.info(`Actualizando el tracking para el código: ${trackingCode}`);
+      logWithDetails.info(`Actualizando el tracking para el código: ${trackingCode}`);
 
       // Agregar nuevos movimientos que no estén ya en la base de datos
       tableData.forEach((movement) => {
@@ -45,9 +45,9 @@ const saveOrUpdateTrackingData = async (
       }
 
       await tracking.save();
-      logger.info("Datos de tracking actualizados correctamente.");
+      logWithDetails.info("Datos de tracking actualizados correctamente.");
     } else {
-      logger.info(`Creando un nuevo tracking para el código: ${trackingCode}`);
+      logWithDetails.info(`Creando un nuevo tracking para el código: ${trackingCode}`);
 
       // Crear un nuevo registro de tracking si no existe
       await Tracking.create({
@@ -66,10 +66,10 @@ const saveOrUpdateTrackingData = async (
           : [],
       });
 
-      logger.info("Nuevo tracking creado correctamente.");
+      logWithDetails.info("Nuevo tracking creado correctamente.");
     }
   } catch (error) {
-    logger.error("Error al guardar o actualizar los datos de tracking:", error);
+    logWithDetails.error("Error al guardar o actualizar los datos de tracking:", error);
   }
 };
 

@@ -1,5 +1,5 @@
 const ServicioDomestico = require("../models/laboral_servicioDomestico");
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 
 async function agruparPorFechaYCategoria(datos) {
   const resultado = {};
@@ -63,7 +63,7 @@ async function guardarDatosAgrupados(datosAgrupados) {
   }
 
   if (bulkOps.length > 0) {
-    logger.info(
+    logWithDetails.info(
       "Datos agrupados guardados/actualizados en base de datos Servicio Doméstico"
     );
     return await ServicioDomestico.bulkWrite(bulkOps);
@@ -101,7 +101,7 @@ const buscarPorIds = async (ids) => {
     // Enviar la respuesta con los elementos encontrados
     return resultados;
   } catch (error) {
-    logger.error(`Error al buscar por IDs: ${error}`);
+    logWithDetails.error(`Error al buscar por IDs: ${error}`);
     throw new Error(error);
   }
 };
@@ -120,7 +120,7 @@ const findDocumentsToPostOrNotify = async (filterOptions = {}) => {
 
     return results.length > 0 ? results : [];
   } catch (error) {
-    logger.error(`Error al buscar documentos: ${error}`);
+    logWithDetails.error(`Error al buscar documentos: ${error}`);
     throw new Error(error);
   }
 };
@@ -157,7 +157,7 @@ async function updateNotifications(ids, notificationTypes) {
     const result = await ServicioDomestico.find({ _id: { $in: ids } });
     return result;
   } catch (error) {
-    logger.error("Error actualizando las notificaciones: ", error);
+    logWithDetails.error("Error actualizando las notificaciones: ", error);
     throw error;
   }
 }

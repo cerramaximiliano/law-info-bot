@@ -1,6 +1,6 @@
 const { SendEmailCommand } = require("@aws-sdk/client-ses");
 const sesClient = require("../config/awsConfig");
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 
 // Función para enviar correos electrónicos
 const sendEmail = async (to, subject, htmlBody, textBody) => {
@@ -30,10 +30,10 @@ const sendEmail = async (to, subject, htmlBody, textBody) => {
   try {
     const command = new SendEmailCommand(params);
     const result = await sesClient.send(command);
-    logger.info(`Correo enviado a ${to}:`, result);
+    logWithDetails.info(`Correo enviado a ${to}:`, result);
     return result;
   } catch (error) {
-    logger.error(`Error al enviar correo a ${to}:`, error);
+    logWithDetails.error(`Error al enviar correo a ${to}:`, error);
     throw error;
   }
 };

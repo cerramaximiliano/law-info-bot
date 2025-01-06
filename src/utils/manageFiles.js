@@ -1,7 +1,7 @@
 const fs = require("fs").promises;
 const fss = require("fs");
 const path = require("path");
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 
 const cleanDirectory = async (directoryPath) => {
   try {
@@ -12,12 +12,12 @@ const cleanDirectory = async (directoryPath) => {
     for (const file of files) {
       const filePath = path.join(directoryPath, file);
       await fs.unlink(filePath);
-      logger.info(`Archivo eliminado: ${filePath}`);
+      logWithDetails.info(`Archivo eliminado: ${filePath}`);
     }
 
-    logger.info("La carpeta ha sido limpiada correctamente.");
+    logWithDetails.info("La carpeta ha sido limpiada correctamente.");
   } catch (error) {
-    logger.error("Error al limpiar la carpeta:", error);
+    logWithDetails.error("Error al limpiar la carpeta:", error);
   }
 };
 
@@ -26,7 +26,7 @@ const loadFile = (filePath) => {
     const data = fss.readFileSync(filePath, "utf8");
     return data;
   } catch (err) {
-    logger.error("Error leyendo el archivo: ", err);
+    logWithDetails.error("Error leyendo el archivo: ", err);
     return null;
   }
 };
@@ -35,10 +35,10 @@ const loadFile = (filePath) => {
 async function cleanupLocalFile(filePath) {
   try {
     await fs.unlink(filePath);
-    logger.info(`Archivo eliminado correctamente: ${filePath}`);
+    logWithDetails.info(`Archivo eliminado correctamente: ${filePath}`);
     return true;
   } catch (error) {
-    logger.error(`Error eliminando archivo: ${filePath}:`, error);
+    logWithDetails.error(`Error eliminando archivo: ${filePath}:`, error);
     return false;
   }
 }

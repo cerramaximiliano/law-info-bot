@@ -1,4 +1,4 @@
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 const FeesModel = require("../models/feesValues");
 const FeesValuesBA = require("../models/feesValuesBA");
 const FeesValuesCaba = require("../models/feesValuesCaba");
@@ -35,12 +35,12 @@ async function saveFeesValuesAfterLastVigencia(data) {
 
       // Realizar la operación en bloque para insertar los nuevos registros
       const result = await FeesModel.bulkWrite(bulkOps);
-      logger.info(`Insertados: ${result.nInserted} nuevos registros.`);
+      logWithDetails.info(`Insertados: ${result.nInserted} nuevos registros.`);
     } else {
-      logger.info("No hay nuevos registros para insertar.");
+      logWithDetails.info("No hay nuevos registros para insertar.");
     }
   } catch (error) {
-    logger.error("Error en la operación:", error);
+    logWithDetails.error("Error en la operación:", error);
   }
 }
 
@@ -76,12 +76,12 @@ async function saveFeesValuesAfterLastVigenciaCaba(data) {
 
       // Realizar la operación en bloque para insertar los nuevos registros
       const result = await FeesValuesCaba.bulkWrite(bulkOps);
-      logger.info(`Insertados: ${result.nInserted} nuevos registros.`);
+      logWithDetails.info(`Insertados: ${result.nInserted} nuevos registros.`);
     } else {
-      logger.info("No hay nuevos registros para insertar.");
+      logWithDetails.info("No hay nuevos registros para insertar.");
     }
   } catch (error) {
-    logger.error("Error en la operación:", error);
+    logWithDetails.error("Error en la operación:", error);
   }
 }
 
@@ -96,7 +96,7 @@ async function findUnnotifiedFees(Model, findOptions) {
     });
     return results;
   } catch (err) {
-    logger.error("Error fetching unnotified fees:", err);
+    logWithDetails.error("Error fetching unnotified fees:", err);
     throw err;
   }
 }
@@ -119,7 +119,7 @@ async function findLatestFees(Model) {
 
     return results;
   } catch (err) {
-    logger.error("Error fetching latest fees:", err);
+    logWithDetails.error("Error fetching latest fees:", err);
     throw err;
   }
 }
@@ -140,12 +140,12 @@ async function saveNewFeesBA(elementsArray) {
 
     if (bulkOperations.length > 0) {
       const result = await FeesValuesBA.bulkWrite(bulkOperations);
-      logger.info("Operaciones bulk completadas:", result);
+      logWithDetails.info("Operaciones bulk completadas:", result);
     } else {
-      logger.info("No hay operaciones para realizar.");
+      logWithDetails.info("No hay operaciones para realizar.");
     }
   } catch (error) {
-    logger.error("Error al realizar las operaciones bulk:", error);
+    logWithDetails.error("Error al realizar las operaciones bulk:", error);
   }
 }
 

@@ -12,14 +12,14 @@ const routes = require("./src/routes");
 
 const connectDB = require("./src/config/db");
 const { startCronJobs } = require("./src/services/cronJobs");
-const { logger } = require("./src/config/logger");
+const { logWithDetails } = require("./src/config/logger");
 
 // Iniciar tareas programadas
 startCronJobs();
 
 app.listen(PORT, () => {
-  logger.info("Aplicación iniciada correctamente");
-  logger.info(`Escuchando puerto ${PORT}`);
+  logWithDetails.info("Aplicación iniciada correctamente");
+  logWithDetails.info(`Escuchando puerto ${PORT}`);
   connectDB();
 });
 

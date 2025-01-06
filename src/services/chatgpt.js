@@ -1,6 +1,6 @@
 // Importar las dependencias
 const { Configuration, OpenAI } = require("openai");
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 const { loadFile } = require("../utils/manageFiles");
 
 // Configurar el cliente de OpenAI

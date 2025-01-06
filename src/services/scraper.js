@@ -5,7 +5,7 @@ const FeesModel = require("../models/feesValues");
 const Courses = require("../models/courses");
 const { saveNewNews } = require("../controllers/notiicasControllers");
 const hashStringToNumber = require("../utils/formatId");
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 const {
   parseDate,
   parseDateFormat,
@@ -168,12 +168,12 @@ const scrapeInfojus = async () => {
         // Si no existe, lo guarda en la base de datos
         const newsItem = new News(article);
         await newsItem.save();
-        logger.info(`Artículo guardado: ${article.title}`);
+        logWithDetails.info(`Artículo guardado: ${article.title}`);
       } else {
-        logger.info(`Artículo : ${article.title}`);
+        logWithDetails.info(`Artículo : ${article.title}`);
       }
     } catch (error) {
-      logger.error(`Error guardando artículo: ${article.title}`, error);
+      logWithDetails.error(`Error guardando artículo: ${article.title}`, error);
     }
   }
 
@@ -235,12 +235,12 @@ const scrapeElDial = async () => {
         // Si no existe, lo guarda en la base de datos
         const newsItem = new News(article);
         await newsItem.save();
-        logger.info(`Artículo guardado: ${article.title}`);
+        logWithDetails.info(`Artículo guardado: ${article.title}`);
       } else {
-        logger.info(`Artículo ya existe: ${article.title}`);
+        logWithDetails.info(`Artículo ya existe: ${article.title}`);
       }
     } catch (error) {
-      logger.error(`Error guardando artículo: ${article.title}`, error);
+      logWithDetails.error(`Error guardando artículo: ${article.title}`, error);
     }
   }
 
@@ -301,12 +301,12 @@ const scrapeHammurabi = async () => {
           siteId: article.siteId,
         });
         await newsItem.save();
-        logger.info(`Artículo guardado: ${article.title}`);
+        logWithDetails.info(`Artículo guardado: ${article.title}`);
       } else {
-        logger.info(`Artículo ya existe: ${article.title}`);
+        logWithDetails.info(`Artículo ya existe: ${article.title}`);
       }
     } catch (error) {
-      logger.error(`Error guardando artículo: ${article.title}`, error);
+      logWithDetails.error(`Error guardando artículo: ${article.title}`, error);
     }
   }
 
@@ -361,7 +361,7 @@ const scrapeSaij = async () => {
       return items;
     });
 
-    logger.info(`Cantidad de normas extraídas: ${newsItems.length}`);
+    logWithDetails.info(`Cantidad de normas extraídas: ${newsItems.length}`);
 
     for (const item of newsItems) {
       const existingNews = await Acts.findOne({ id: item.id });
@@ -374,18 +374,18 @@ const scrapeSaij = async () => {
         });
         try {
           await newsItem.save();
-          logger.info(`Norma guardada: ${newsItem.title}`);
+          logWithDetails.info(`Norma guardada: ${newsItem.title}`);
         } catch (error) {
-          logger.error(`Error al guardar la norma: ${error.message}`);
+          logWithDetails.error(`Error al guardar la norma: ${error.message}`);
         }
       } else {
-        logger.info(`Norma ya existe: ${item.title}`);
+        logWithDetails.info(`Norma ya existe: ${item.title}`);
       }
     }
 
     await browser.close();
   } catch (err) {
-    logger.error("Error web scraping SAIJ", err);
+    logWithDetails.error("Error web scraping SAIJ", err);
   }
 };
 
@@ -468,12 +468,14 @@ const scrapeGPCourses = async () => {
             siteId: "Grupo Profesional",
           });
           await nuevoCurso.save();
-          logger.info(`Curso guardado: ${curso.title}`);
+          logWithDetails.info(`Curso guardado: ${curso.title}`);
         } else {
-          logger.info(`Curso ya existe: ${curso.title}. No se guardará.`);
+          logWithDetails.info(
+            `Curso ya existe: ${curso.title}. No se guardará.`
+          );
         }
       } else {
-        logger.info(
+        logWithDetails.info(
           `Fecha inválida para el curso: ${curso.title}. No se guardará.`
         );
       }
@@ -481,7 +483,7 @@ const scrapeGPCourses = async () => {
 
     await browser.close();
   } catch (error) {
-    logger.error("Error durante el scraping:", error);
+    logWithDetails.error("Error durante el scraping:", error);
   }
 };
 
@@ -590,16 +592,18 @@ const scrapeDiplomados = async () => {
           siteId: "Grupo Profesional",
         });
         await nuevoCurso.save();
-        logger.info(`Curso guardado: ${diplomado.title}`);
+        logWithDetails.info(`Curso guardado: ${diplomado.title}`);
       } else {
-        logger.info(`Curso ya existe: ${diplomado.title}. No se guardará.`);
+        logWithDetails.info(
+          `Curso ya existe: ${diplomado.title}. No se guardará.`
+        );
       }
     }
 
     await browser.close();
   } catch (error) {
-    logger.error(error);
-    logger.error("Error durante el scraping:", error);
+    logWithDetails.error(error);
+    logWithDetails.error("Error durante el scraping:", error);
   }
 };
 
@@ -680,16 +684,18 @@ const scrapeUBATalleres = async () => {
             siteId: taller.siteId,
           });
           await nuevoCurso.save();
-          logger.info(`Curso guardado: ${taller.title}`);
+          logWithDetails.info(`Curso guardado: ${taller.title}`);
         } else {
-          logger.info(`Curso ya existe: ${taller.title}. No se guardará.`);
+          logWithDetails.info(
+            `Curso ya existe: ${taller.title}. No se guardará.`
+          );
         }
       }
     }
 
     await browser.close();
   } catch (error) {
-    logger.error("Error durante el scraping:", error);
+    logWithDetails.error("Error durante el scraping:", error);
   }
 };
 
@@ -810,16 +816,18 @@ const scrapeUBAProgramas = async () => {
             price: programa.priceOthers,
           });
           await nuevoPrograma.save();
-          logger.info(`Programa guardado: ${programa.title}`);
+          logWithDetails.info(`Programa guardado: ${programa.title}`);
         } else {
-          logger.info(`Programa ya existe: ${programa.title}. No se guardará.`);
+          logWithDetails.info(
+            `Programa ya existe: ${programa.title}. No se guardará.`
+          );
         }
       }
     }
 
     await browser.close();
   } catch (error) {
-    logger.error("Error durante el scraping:", error);
+    logWithDetails.error("Error durante el scraping:", error);
   }
 };
 
@@ -892,7 +900,7 @@ const scrapeFeesData = async () => {
 
     await saveFeesValuesAfterLastVigencia(processedData);
   } catch (err) {
-    logger.error(`Error scraping fees data: ${err}`);
+    logWithDetails.error(`Error scraping fees data: ${err}`);
   }
 };
 
@@ -967,7 +975,7 @@ const scrapeFeesDataCABA = async () => {
 
     await saveFeesValuesAfterLastVigenciaCaba(processedData);
   } catch (err) {
-    logger.error(`Error scraping fees data: ${err}`);
+    logWithDetails.error(`Error scraping fees data: ${err}`);
   }
 };
 
@@ -1049,7 +1057,7 @@ const scrapeFeesDataBsAs = async () => {
     }
     return groupedData;
   } catch (error) {
-    logger.error("Error al realizar el scraping Fees BA:", error);
+    logWithDetails.error("Error al realizar el scraping Fees BA:", error);
   } finally {
     // Cierra el navegador
     if (browser) {
@@ -1133,7 +1141,7 @@ const scrapeLegalPage = async (urlPage, include, alternatives, type) => {
     });
     return resultadosConFechaISO;
   } catch (error) {
-    logger.error("Error al realizar el scraping legal:", error);
+    logWithDetails.error("Error al realizar el scraping legal:", error);
     throw Error(error);
   } finally {
     if (browser) {
@@ -1192,11 +1200,11 @@ const scrapePrevisionalLink = async (link) => {
 
     // Verificar si se encuentran elementos con el contenido deseado
     if (articles.length === 0) {
-      logger.error(
+      logWithDetails.error(
         "No se encontraron elementos que comiencen con 'ARTÍCULO'. Verificar la estructura del DOM."
       );
     }
-    logger.info(articles);
+    logWithDetails.info(articles);
     // Extraer los datos específicos de cada artículo
     const extractedData = articles
       .map((article, index) => {
@@ -1252,7 +1260,7 @@ const scrapePrevisionalLink = async (link) => {
     const data = extractedData.sort((a, b) => a.order - b.order);
     return extractedData;
   } catch (error) {
-    logger.error(`Error al obtener datos previsionales: ${error}`);
+    logWithDetails.error(`Error al obtener datos previsionales: ${error}`);
     throw new Error(error);
   } finally {
     if (browser) {
@@ -1437,7 +1445,7 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
                   });
                 }
               } catch (error) {
-                logger.error(
+                logWithDetails.error(
                   "Error extrayendo datos para la categoría:",
                   categoria,
                   error
@@ -1474,7 +1482,7 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
                   });
                 }
               } catch (error) {
-                logger.error(
+                logWithDetails.error(
                   "Error extrayendo datos para la categoría CASEROS:",
                   categoria,
                   error
@@ -1491,7 +1499,7 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
 
     // Mostrar advertencias de fechas no encontradas
     warnings.forEach((warning) => {
-      logger.error(warning);
+      logWithDetails.error(warning);
     });
 
     // Filtrar los resultados para devolver solo las fechas posteriores a la fecha proporcionada
@@ -1504,7 +1512,7 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
       return resultados;
     }
   } catch (error) {
-    logger.error(`Error de scraping page servicio doméstico: ${error}`);
+    logWithDetails.error(`Error de scraping page servicio doméstico: ${error}`);
     throw Error(error);
   } finally {
     if (browser) {

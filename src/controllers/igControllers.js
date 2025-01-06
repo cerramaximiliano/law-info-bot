@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { logger } = require("../config/logger");
+const { logWithDetails } = require("../config/logger");
 const { sendEmailController } = require("./emailControllers");
 const accessToken = process.env.IG_API_TOKEN;
 const instagramAccountId = process.env.IG_ACCOUNT_ID;
@@ -25,7 +25,7 @@ const uploadMedia = async (imageUrl, caption, Model, ids) => {
     );
 
     const mediaId = responseMedia.data.id;
-    logger.info("ID del medio:", mediaId);
+    logWithDetails.info("ID del medio:", mediaId);
 
     // Paso 2: Publicar el objeto de medios en Instagram
     const responsePublish = await axios.post(
@@ -43,7 +43,7 @@ const uploadMedia = async (imageUrl, caption, Model, ids) => {
       }
     );
 
-    logger.info("Publicación exitosa:", responsePublish.data);
+    logWithDetails.info("Publicación exitosa:", responsePublish.data);
     if (Model && ids) {
       await Model.findOneAndUpdate(
         { _id: { $in: ids } },
@@ -53,7 +53,7 @@ const uploadMedia = async (imageUrl, caption, Model, ids) => {
     }
     return true; // Return true on successful execution
   } catch (error) {
-    logger.error(
+    logWithDetails.error(
       "Error al subir la imagen:",
       error.response ? error.response.data : error.message
     );
@@ -85,7 +85,7 @@ const uploadCarouselMedia = async (imageUrls, caption) => {
       );
 
       const mediaId = responseMedia.data.id;
-      logger.info("ID del medio creado:", mediaId);
+      logWithDetails.info("ID del medio creado:", mediaId);
       mediaIds.push(mediaId);
     }
 
@@ -108,7 +108,7 @@ const uploadCarouselMedia = async (imageUrls, caption) => {
     );
 
     const carouselId = responseCarousel.data.id;
-    logger.info("ID del carrusel creado:", carouselId);
+    logWithDetails.info("ID del carrusel creado:", carouselId);
 
     // Paso 3: Publicar el objeto de carrusel en Instagram
     const responsePublish = await axios.post(
@@ -126,9 +126,9 @@ const uploadCarouselMedia = async (imageUrls, caption) => {
       }
     );
 
-    logger.info("Publicación de carrusel exitosa:", responsePublish.data);
+    logWithDetails.info("Publicación de carrusel exitosa:", responsePublish.data);
   } catch (error) {
-    logger.error(
+    logWithDetails.error(
       "Error al subir el carrusel:",
       error.response ? error.response.data : error.message
     );
