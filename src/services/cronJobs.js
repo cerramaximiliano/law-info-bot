@@ -94,6 +94,93 @@ const cronSchedules = {
   notifyNewCoursesHours: "0 9 16 * *",
   cleanLogsHours: "0 0 15,30 * *",
   loggerReportHours: "59 23 * * 1-5",
+
+  efemerides: [
+    {
+      cron: "30 10 15 1 *",
+      nombre: "Día del Comisionado de Derechos Humanos",
+      hashtags: "#DerechosHumanos #Justicia #ONU",
+      imagenes: ["DIA_DDHH_01", "DIA_DDHH_02"],
+    },
+    {
+      cron: "30 10 24 1 *",
+      nombre: "Día Internacional de la Educación",
+      hashtags: "#EducaciónParaTodos #DerechosHumanos",
+      imagenes: ["DIA_EDUCACION_01", "DIA_EDUCACION_02"],
+    },
+    {
+      cron: "30 10 20 2 *",
+      nombre: "Día Mundial de la Justicia Social",
+      hashtags: "#JusticiaSocial #Igualdad",
+      imagenes: ["DIA_JUSTICIA_01", "DIA_JUSTICIA_02"],
+    },
+    {
+      cron: "30 10 8 3 *",
+      nombre: "Día Internacional de la Mujer",
+      hashtags: "#DiaDeLaMujer #IgualdadDeGénero",
+      imagenes: ["DIA_MUJER_01", "DIA_MUJER_02"],
+    },
+    {
+      cron: "30 10 10 12 *",
+      nombre: "Día de los Derechos Humanos",
+      hashtags: "#DerechosHumanos #Igualdad #Justicia",
+      imagenes: ["DIA_DDHH_01", "DIA_DDHH_02"],
+    },
+    {
+      cron: "30 10 1 2 *",
+      nombre: "Día del Abogado Laboralista",
+      hashtags: "#AbogadoLaboralista #DerechoLaboral",
+      imagenes: ["DIA_ABOGADO_LAB_01", "DIA_ABOGADO_LAB_02"],
+    },
+    {
+      cron: "30 10 12 6 *",
+      nombre: "Día Nacional contra el Trabajo Infantil",
+      hashtags: "#TrabajoInfantilNo #DerechosDeLosNiños",
+      imagenes: ["DIA_TRABAJO_INFANTIL_01", "DIA_TRABAJO_INFANTIL_02"],
+    },
+    {
+      cron: "30 10 29 8 *",
+      nombre: "Día del Abogado",
+      hashtags: "#DiaDelAbogado #Derecho",
+      imagenes: ["DIA_ABOGADO_01", "DIA_ABOGADO_02"],
+    },
+    {
+      cron: "30 10 23 9 *",
+      nombre: "Día Contra la Explotación Sexual y Trata de Personas",
+      hashtags: "#TrataDePersonasNo #Justicia",
+      imagenes: ["DIA_TRATA_01", "DIA_TRATA_02"],
+    },
+    {
+      cron: "30 10 10 10 *",
+      nombre: "Día de la Abogacía del Niño",
+      hashtags: "#AbogaciaDelNiño #DerechosDeLaNiñez",
+      imagenes: ["DIA_ABOGACIA_NINO_01", "DIA_ABOGACIA_NINO_02"],
+    },
+    {
+      cron: "30 10 3 12 *",
+      nombre: "Día del Médico y del Derecho a la Salud",
+      hashtags: "#DerechoALaSalud #SaludParaTodos",
+      imagenes: ["DIA_SALUD_01", "DIA_SALUD_02"],
+    },
+    {
+      cron: "30 10 22 3 *",
+      nombre: "Día Mundial del Agua",
+      hashtags: "#DerechoAlAgua #AguaParaTodos",
+      imagenes: ["DIA_AGUA_01", "DIA_AGUA_02"],
+    },
+    {
+      cron: "30 10 28 4 *",
+      nombre: "Día Mundial de la Seguridad y Salud en el Trabajo",
+      hashtags: "#SeguridadLaboral #DerechosLaborales",
+      imagenes: ["DIA_SEGURIDAD_01", "DIA_SEGURIDAD_02"],
+    },
+    {
+      cron: "30 10 16 11 *",
+      nombre: "Día Internacional para la Tolerancia",
+      hashtags: "#Tolerancia #Igualdad #DerechosHumanos",
+      imagenes: ["DIA_TOLERANCIA_01", "DIA_TOLERANCIA_02"],
+    },
+  ],
 };
 const REGION_HOURS = {
   scheduled: true,
@@ -102,8 +189,10 @@ const REGION_HOURS = {
 
 const admin = process.env.ADMIN_EMAIL;
 
+
+
 const startCronJobs = async () => {
-  
+
   // Reporte diario de logs
   cron.schedule(
     cronSchedules.loggerReportHours,
@@ -111,10 +200,6 @@ const startCronJobs = async () => {
       try {
         const analyzer = new LogAnalyzer("src/logs/app.log");
         const report = await analyzer.generateReport(new Date());
-        const count = await analyzer.countAppInitializations();
-        console.log(
-          `Inicializaciones hoy: ${report.summary.appInitializations}`
-        );
         const textReport = formatLogReportEmail(report);
         sendEmailController(
           admin,
