@@ -53,7 +53,43 @@ const deleteImage = async (publicIds) => {
   }
 };
 
+const getLinksFromFolders = async (folders) => {
+  try {
+    if (!folders || !Array.isArray(folders)) {
+      throw new Error('Se requiere un array de carpetas en el parámetro "folders".');
+    }
+
+    let allResources = [];
+
+    // Itera sobre cada carpeta y obtiene los recursos
+    for (const folder of folders) {
+      const result = await cloudinary.api.resources({
+        type: 'upload',
+        prefix: `${folder}/`, // Prefijo de la carpeta
+        max_results: 500, // Ajusta el número máximo de resultados por solicitud si es necesario
+      });
+
+      // Extrae los links de los recursos encontrados
+      const resources = result.resources.map((resource) => ({
+        public_id: resource.public_id,
+        url: resource.secure_url,
+      }));
+
+      allResources = [...allResources, ...resources];
+    }
+
+    return {
+      success: true,
+      resources: allResources,
+    };
+  } catch (error) {
+    console.error('Error al obtener recursos de las carpetas:', error);
+    throw new Error('Error al obtener recursos de las carpetas.');
+  }
+};
+
 module.exports = {
   uploadImage,
   deleteImage,
+  getLinksFromFolders
 };

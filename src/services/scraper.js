@@ -1,4 +1,3 @@
-const puppeteer = require("puppeteer");
 const News = require("../models/news");
 const Acts = require("../models/acts");
 const FeesModel = require("../models/feesValues");
@@ -36,1116 +35,2155 @@ const siteDetails = {
 
 const apiKey = process.env.RECAPTCHA_API_KEY;
 
+const { browserPool, waitForInitialization } = require("../utils/browserPool");
+const { retryOperation, cleanupMemory } = require("../utils/scrapingUtils");
+const defaultPuppeteerConfig = require("../config/puppeteerConfig");
+
 const scrapeNoticias = async () => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  const page = await browser.newPage();
+  let browser;
+  try {
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-  // Navega a la página objetivo
-  await page.goto("https://www.diariojudicial.com/", {
-    waitUntil: "networkidle2",
-  });
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-  // Extrae los elementos con texto y href que contienen "news"
-  const elements = await page.evaluate(() => {
-    const links = [];
-    // Selecciona todos los elementos con un atributo href
-    document.querySelectorAll("a[href]").forEach((anchor) => {
-      const textContent = anchor.textContent.trim(); // Extrae el texto
-      const href = anchor.href; // Extrae el href
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
 
-      // Verifica si el href contiene la palabra "news"
-      if (href.includes("news") && textContent) {
-        links.push({ text: textContent, href: href });
-      }
-    });
+    logWithDetails.info("Navegador adquirido exitosamente");
 
-    // Agrupa los enlaces por href
-    const groupedLinks = links.reduce((acc, current) => {
-      const existing = acc.find((item) => item.href === current.href);
-      if (existing) {
-        // Actualiza title (el más corto) y text (el más largo)
-        const newTitle =
-          current.text.length < existing.title.length
-            ? current.text
-            : existing.title;
-        const newText =
-          current.text.length > existing.text.length
-            ? current.text
-            : existing.text;
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
 
-        // Asegura que title y text sean diferentes
-        if (newTitle !== newText) {
-          existing.title = newTitle;
-          existing.text = newText;
-        }
-      } else {
-        // Extrae el número del href utilizando una expresión regular
-        const numberMatch = current.href.match(/news-(\d+)-/);
-        const number = numberMatch ? numberMatch[1] : null;
+    const scrapeOperation = async () => {
+      // Navega a la página objetivo
+      await page.goto("https://www.diariojudicial.com/", {
+        waitUntil: "networkidle2",
+      });
 
-        // Añade nuevo elemento al grupo con el número extraído
-        acc.push({
-          href: current.href,
-          title: current.text,
-          text: current.text,
-          id: Number(number), // Agrega el número extraído
-          siteId: "diariojudicial",
+      // Extrae los elementos con texto y href que contienen "news"
+      const elements = await page.evaluate(() => {
+        const links = [];
+        // Selecciona todos los elementos con un atributo href
+        document.querySelectorAll("a[href]").forEach((anchor) => {
+          const textContent = anchor.textContent.trim(); // Extrae el texto
+          const href = anchor.href; // Extrae el href
+
+          // Verifica si el href contiene la palabra "news"
+          if (href.includes("news") && textContent) {
+            links.push({ text: textContent, href: href });
+          }
         });
+
+        // Agrupa los enlaces por href
+        const groupedLinks = links.reduce((acc, current) => {
+          const existing = acc.find((item) => item.href === current.href);
+          if (existing) {
+            // Actualiza title (el más corto) y text (el más largo)
+            const newTitle =
+              current.text.length < existing.title.length
+                ? current.text
+                : existing.title;
+            const newText =
+              current.text.length > existing.text.length
+                ? current.text
+                : existing.text;
+
+            // Asegura que title y text sean diferentes
+            if (newTitle !== newText) {
+              existing.title = newTitle;
+              existing.text = newText;
+            }
+          } else {
+            // Extrae el número del href utilizando una expresión regular
+            const numberMatch = current.href.match(/news-(\d+)-/);
+            const number = numberMatch ? numberMatch[1] : null;
+
+            // Añade nuevo elemento al grupo con el número extraído
+            acc.push({
+              href: current.href,
+              title: current.text,
+              text: current.text,
+              id: Number(number), // Agrega el número extraído
+              siteId: "diariojudicial",
+            });
+          }
+          return acc;
+        }, []);
+
+        // Filtra los enlaces donde title y text son iguales
+        const filteredLinks = groupedLinks.filter(
+          (item) => item.title !== item.text
+        );
+
+        return filteredLinks;
+      });
+
+      const savedNews = await saveNewNews(elements, "diariojudicial");
+    };
+    const result = await retryOperation(scrapeOperation);
+
+    cleanupMemory();
+    return result;
+  } catch (error) {
+    logWithDetails.info(`Error en la tarea de scraping: ${error}`);
+  } finally {
+    if (browser) {
+      try {
+        await browserPool.release(browser);
+        logWithDetails.info("Navegador liberado exitosamente");
+      } catch (releaseError) {
+        logError("Error liberando navegador", releaseError);
       }
-      return acc;
-    }, []);
-
-    // Filtra los enlaces donde title y text son iguales
-    const filteredLinks = groupedLinks.filter(
-      (item) => item.title !== item.text
-    );
-
-    return filteredLinks;
-  });
-
-  const savedNews = await saveNewNews(elements, "diariojudicial");
-
-  // Cierra el navegador
-  await browser.close();
-
-  return savedNews;
+    }
+  }
 };
 
 const scrapeInfojus = async () => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  const page = await browser.newPage();
+  let browser;
+  try {
+    // Usar el pool de navegadores en lugar de crear uno nuevo
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-  // Navega al sitio web
-  await page.goto("http://www.infojusnoticias.gov.ar/", {
-    waitUntil: "load",
-    timeout: 0,
-  });
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-  // Extraer los artículos de la página
-  const articles = await page.evaluate(() => {
-    // Selecciona todos los elementos <article> con la clase "principal"
-    const elements = document.querySelectorAll("article");
-    const results = [];
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
 
-    elements.forEach((element) => {
-      const hrefElement = element.querySelector("h3 a");
-      const textElement = element.querySelector("p.bajada-home");
+    logWithDetails.info("Navegador adquirido exitosamente");
 
-      if (hrefElement && textElement) {
-        const href = hrefElement.getAttribute("href");
-        const title = hrefElement.innerText.trim();
-        const text = textElement.innerText.trim();
-        const idMatch = href.match(/-(\d+)\.html$/);
-        const id = idMatch ? parseInt(idMatch[1], 10) : null;
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
 
-        if (id) {
-          results.push({
-            href: `http://www.infojusnoticias.gov.ar${href}`,
-            title,
-            text,
-            id,
-            siteId: "infojus",
-          });
-        }
+    // Encapsular la lógica principal de scraping en una función para usar con retryOperation
+    const scrapeOperation = async () => {
+      // Navega al sitio web con timeout configurado
+      await page.goto("http://www.infojusnoticias.gov.ar/", {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
+      });
+
+      logWithDetails.info("Iniciando extracción de artículos de Infojus");
+
+      // Extraer los artículos de la página
+      const articles = await page.evaluate(() => {
+        const elements = document.querySelectorAll("article");
+        const results = [];
+
+        elements.forEach((element) => {
+          try {
+            const hrefElement = element.querySelector("h3 a");
+            const textElement = element.querySelector("p.bajada-home");
+
+            if (hrefElement && textElement) {
+              const href = hrefElement.getAttribute("href");
+              const title = hrefElement.innerText.trim();
+              const text = textElement.innerText.trim();
+              const idMatch = href.match(/-(\d+)\.html$/);
+              const id = idMatch ? parseInt(idMatch[1], 10) : null;
+
+              if (id) {
+                results.push({
+                  href: `http://www.infojusnoticias.gov.ar${href}`,
+                  title,
+                  text,
+                  id,
+                  siteId: "infojus",
+                });
+              }
+            }
+          } catch (err) {
+            console.error("Error procesando elemento:", err);
+          }
+        });
+
+        return results;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${articles.length} artículos para procesar`
+      );
+
+      // Procesar los artículos en lotes para optimizar el uso de memoria
+      const BATCH_SIZE = 5;
+      for (let i = 0; i < articles.length; i += BATCH_SIZE) {
+        const batch = articles.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async (article) => {
+            try {
+              const exists = await News.findOne({ id: article.id });
+              if (!exists) {
+                const newsItem = new News(article);
+                await newsItem.save();
+                logWithDetails.info(
+                  `Artículo guardado: ${article.title} (ID: ${article.id})`
+                );
+              } else {
+                logWithDetails.info(
+                  `Artículo ya existe: ${article.title} (ID: ${article.id})`
+                );
+              }
+            } catch (error) {
+              logWithDetails.error(
+                `Error guardando artículo: ${article.title} (ID: ${article.id})`,
+                error
+              );
+            }
+          })
+        );
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
       }
-    });
 
-    return results;
-  });
+      return articles.length;
+    };
 
-  // Itera sobre los artículos y guárdalos en la base de datos
-  for (const article of articles) {
-    try {
-      // Verifica si el artículo ya existe
-      const exists = await News.findOne({ id: article.id });
-      if (!exists) {
-        // Si no existe, lo guarda en la base de datos
-        const newsItem = new News(article);
-        await newsItem.save();
-        logWithDetails.info(`Artículo guardado: ${article.title}`);
-      } else {
-        logWithDetails.info(`Artículo : ${article.title}`);
-      }
-    } catch (error) {
-      logWithDetails.error(`Error guardando artículo: ${article.title}`, error);
+    // Ejecutar la operación con reintentos
+    const articlesProcessed = await retryOperation(scrapeOperation);
+    logWithDetails.info(
+      `Scraping de Infojus completado. Artículos procesados: ${articlesProcessed}`
+    );
+
+    return articlesProcessed;
+  } catch (error) {
+    logWithDetails.error(`Error crítico en scrapeInfojus: ${error.stack}`);
+    throw error;
+  } finally {
+    if (browser) {
+      // Devolver el navegador al pool en lugar de cerrarlo
+      await browserPool.release(browser);
     }
   }
-
-  // Cierra el navegador
-  await browser.close();
 };
 
 const scrapeElDial = async () => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  const page = await browser.newPage();
+  let browser;
+  try {
+    // Usar el pool de navegadores
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-  // Navega al sitio web
-  await page.goto("https://www.eldial.com/nuevo/nuevo_diseno/v2/index.asp", {
-    waitUntil: "load",
-    timeout: 0,
-  });
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-  // Extraer los artículos de la página
-  const articles = await page.evaluate(() => {
-    // Selecciona todos los elementos <li>
-    const elements = document.querySelectorAll("li");
-    const results = [];
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
 
-    elements.forEach((element) => {
-      const hrefElement = element.querySelector("h4 a");
-      const textElement = element.querySelector("p");
+    logWithDetails.info("Navegador adquirido exitosamente");
 
-      if (hrefElement && textElement) {
-        const href = hrefElement.getAttribute("href");
-        const title = hrefElement.innerText.trim();
-        const text = textElement.innerText.trim();
-        const idMatch = href.match(/id=(\d+)/);
-        const id = idMatch ? parseInt(idMatch[1], 10) : null;
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
 
-        if (id) {
-          results.push({
-            href: `https://www.eldial.com/nuevo/nuevo_diseno/v2/${href}`,
-            title,
-            text,
-            id,
-            siteId: "eldial",
-          });
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de El Dial");
+
+      // Navegar al sitio con timeout configurado
+      await page.goto(
+        "https://www.eldial.com/nuevo/nuevo_diseno/v2/index.asp",
+        {
+          waitUntil: "networkidle2",
+          timeout: defaultPuppeteerConfig.timeout,
         }
+      );
+
+      // Extraer artículos
+      const articles = await page.evaluate(() => {
+        const elements = document.querySelectorAll("li");
+        const results = [];
+
+        elements.forEach((element) => {
+          try {
+            const hrefElement = element.querySelector("h4 a");
+            const textElement = element.querySelector("p");
+
+            if (hrefElement && textElement) {
+              const href = hrefElement.getAttribute("href");
+              const title = hrefElement.innerText.trim();
+              const text = textElement.innerText.trim();
+              const idMatch = href.match(/id=(\d+)/);
+              const id = idMatch ? parseInt(idMatch[1], 10) : null;
+
+              if (id) {
+                results.push({
+                  href: `https://www.eldial.com/nuevo/nuevo_diseno/v2/${href}`,
+                  title,
+                  text,
+                  id,
+                  siteId: "eldial",
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error procesando elemento:", error);
+          }
+        });
+
+        return results;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${articles.length} artículos para procesar`
+      );
+
+      // Procesar artículos en lotes para optimizar memoria
+      const BATCH_SIZE = 5;
+      let processedCount = 0;
+      let savedCount = 0;
+
+      for (let i = 0; i < articles.length; i += BATCH_SIZE) {
+        const batch = articles.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(
+          batch.map(async (article) => {
+            try {
+              const exists = await News.findOne({ id: article.id });
+              if (!exists) {
+                const newsItem = new News(article);
+                await newsItem.save();
+                savedCount++;
+                logWithDetails.info(
+                  `Artículo guardado: ${article.title} (ID: ${article.id})`
+                );
+              } else {
+                logWithDetails.info(
+                  `Artículo ya existe: ${article.title} (ID: ${article.id})`
+                );
+              }
+              processedCount++;
+            } catch (error) {
+              logWithDetails.error(
+                `Error guardando artículo: ${article.title} (ID: ${article.id})`,
+                { error: error.message, stack: error.stack }
+              );
+            }
+          })
+        );
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${articles.length} artículos procesados`
+        );
       }
+
+      return {
+        total: articles.length,
+        processed: processedCount,
+        saved: savedCount,
+      };
+    };
+
+    // Ejecutar la operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de El Dial completado", {
+      totalArticles: result.total,
+      processedArticles: result.processed,
+      savedArticles: result.saved,
     });
 
-    return results;
-  });
-
-  // Itera sobre los artículos y guárdalos en la base de datos
-  for (const article of articles) {
-    try {
-      // Verifica si el artículo ya existe
-      const exists = await News.findOne({ id: article.id });
-      if (!exists) {
-        // Si no existe, lo guarda en la base de datos
-        const newsItem = new News(article);
-        await newsItem.save();
-        logWithDetails.info(`Artículo guardado: ${article.title}`);
-      } else {
-        logWithDetails.info(`Artículo ya existe: ${article.title}`);
-      }
-    } catch (error) {
-      logWithDetails.error(`Error guardando artículo: ${article.title}`, error);
+    return result;
+  } catch (error) {
+    logWithDetails.error(`Error crítico en scrapeElDial: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  } finally {
+    if (browser) {
+      // Devolver el navegador al pool
+      await browserPool.release(browser);
     }
   }
-
-  // Cierra el navegador
-  await browser.close();
 };
 
 const scrapeHammurabi = async () => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  const page = await browser.newPage();
+  let browser;
+  try {
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-  await page.goto(
-    "https://www.hammurabi.com.ar/noticias-juridicas-de-la-semana/",
-    { waitUntil: "load", timeout: 0 }
-  );
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-  const articles = await page.evaluate(() => {
-    const elements = document.querySelectorAll("li");
-    const results = [];
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
 
-    elements.forEach((element) => {
-      const hrefElement = element.querySelector("p a");
-      const idElement = element.querySelector("p");
+    logWithDetails.info("Navegador adquirido exitosamente");
 
-      if (hrefElement && idElement) {
-        const href = hrefElement.getAttribute("href");
-        const title = hrefElement.innerText.trim();
-        const idText = idElement.getAttribute("id");
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
 
-        if (idText && href && title) {
-          results.push({
-            href: href.trim(),
-            title,
-            text: "", // No hay texto adicional
-            idText, // Guardamos el texto del id para luego convertirlo en hash
-            siteId: "hammurabi",
-          });
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de Hammurabi");
+
+      // Navegar al sitio
+      await page.goto(
+        "https://www.hammurabi.com.ar/noticias-juridicas-de-la-semana/",
+        {
+          waitUntil: "networkidle2",
+          timeout: defaultPuppeteerConfig.timeout,
         }
+      );
+
+      // Extraer artículos
+      const articles = await page.evaluate(() => {
+        const elements = document.querySelectorAll("li");
+        const results = [];
+
+        elements.forEach((element) => {
+          try {
+            const hrefElement = element.querySelector("p a");
+            const idElement = element.querySelector("p");
+
+            if (hrefElement && idElement) {
+              const href = hrefElement.getAttribute("href");
+              const title = hrefElement.innerText.trim();
+              const idText = idElement.getAttribute("id");
+
+              if (idText && href && title) {
+                results.push({
+                  href: href.trim(),
+                  title,
+                  text: "", // No hay texto adicional
+                  idText,
+                  siteId: "hammurabi",
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error procesando elemento:", error);
+          }
+        });
+
+        return results;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${articles.length} artículos para procesar`
+      );
+
+      // Procesar artículos en lotes
+      const BATCH_SIZE = 5;
+      let processedCount = 0;
+      let savedCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < articles.length; i += BATCH_SIZE) {
+        const batch = articles.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(
+          batch.map(async (article) => {
+            try {
+              const articleId = hashStringToNumber(article.idText);
+              const exists = await News.findOne({ id: articleId });
+
+              if (!exists) {
+                const newsItem = new News({
+                  href: article.href,
+                  title: article.title,
+                  text: article.text,
+                  id: articleId,
+                  siteId: article.siteId,
+                });
+                await newsItem.save();
+                savedCount++;
+                logWithDetails.info(
+                  `Artículo guardado: ${article.title} (ID: ${articleId})`
+                );
+              } else {
+                logWithDetails.info(
+                  `Artículo ya existe: ${article.title} (ID: ${articleId})`
+                );
+              }
+              processedCount++;
+            } catch (error) {
+              errorCount++;
+              logWithDetails.error(
+                `Error guardando artículo: ${article.title}`,
+                {
+                  error: error.message,
+                  stack: error.stack,
+                  articleData: article,
+                }
+              );
+            }
+          })
+        );
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${articles.length} artículos procesados`
+        );
       }
+
+      return {
+        total: articles.length,
+        processed: processedCount,
+        saved: savedCount,
+        errors: errorCount,
+      };
+    };
+
+    // Ejecutar la operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de Hammurabi completado", {
+      totalArticles: result.total,
+      processedArticles: result.processed,
+      savedArticles: result.saved,
+      errorCount: result.errors,
     });
 
-    return results;
-  });
-
-  for (const article of articles) {
-    try {
-      const articleId = hashStringToNumber(article.idText); // Convertimos el id a número usando la función hash
-      const exists = await News.findOne({ id: articleId });
-      if (!exists) {
-        const newsItem = new News({
-          href: article.href,
-          title: article.title,
-          text: article.text,
-          id: articleId, // Usamos el ID generado
-          siteId: article.siteId,
-        });
-        await newsItem.save();
-        logWithDetails.info(`Artículo guardado: ${article.title}`);
-      } else {
-        logWithDetails.info(`Artículo ya existe: ${article.title}`);
-      }
-    } catch (error) {
-      logWithDetails.error(`Error guardando artículo: ${article.title}`, error);
+    return result;
+  } catch (error) {
+    logWithDetails.error(`Error crítico en scrapeHammurabi: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  } finally {
+    if (browser) {
+      await browserPool.release(browser);
     }
   }
-
-  await browser.close();
 };
 
 const scrapeSaij = async () => {
+  let browser;
   try {
-    const url = "http://www.saij.gob.ar/boletin-diario/";
-    const browser = await puppeteer.launch({
-      headless: true,
-      timeout: 60000, // Ajusta el tiempo de espera si es necesario
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-    const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "networkidle2", timeout: 120000 });
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-    const newsItems = await page.evaluate(() => {
-      const items = [];
-      const idPatternDN = /DN(\d+)/; // Regex para extraer el id del formato DN
-      const urlPattern = /id=(\d+)/; // Regex para extraer el id del parámetro de la URL
-
-      document.querySelectorAll(".detalle").forEach((detalle) => {
-        const href = detalle.querySelector(".titulo-norma a")?.href || "";
-        const titleElement = detalle.querySelector(".titulo-norma a");
-        const title = titleElement
-          ? titleElement.textContent.trim() +
-            " (" +
-            (detalle.querySelector(".subtitulo-norma")?.textContent.trim() ||
-              "") +
-            ")"
-          : "";
-        const text =
-          detalle.querySelector(".sintesis")?.textContent.trim() || "";
-
-        // Intentar extraer el id usando ambos patrones
-        const idMatchDN = href.match(idPatternDN);
-        const idMatchURL = href.match(urlPattern);
-        let id = null;
-
-        if (idMatchDN) {
-          id = parseInt(idMatchDN[1], 10);
-        } else if (idMatchURL) {
-          id = parseInt(idMatchURL[1], 10);
-        }
-
-        if (href && title && text && id) {
-          items.push({ href, title, text, id });
-        }
-      });
-      return items;
-    });
-
-    logWithDetails.info(`Cantidad de normas extraídas: ${newsItems.length}`);
-
-    for (const item of newsItems) {
-      const existingNews = await Acts.findOne({ id: item.id });
-      if (!existingNews) {
-        const newsItem = new Acts({
-          ...item,
-          siteId: "saij",
-          notifiedByTelegram: false,
-          notificationDate: null,
-        });
-        try {
-          await newsItem.save();
-          logWithDetails.info(`Norma guardada: ${newsItem.title}`);
-        } catch (error) {
-          logWithDetails.error(`Error al guardar la norma: ${error.message}`);
-        }
-      } else {
-        logWithDetails.info(`Norma ya existe: ${item.title}`);
-      }
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
     }
 
-    await browser.close();
-  } catch (err) {
-    logWithDetails.error("Error web scraping SAIJ", err);
+    logWithDetails.info("Navegador adquirido exitosamente");
+
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
+
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de SAIJ");
+
+      const url = "http://www.saij.gob.ar/boletin-diario/";
+      await page.goto(url, {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
+      });
+
+      // Extraer las normas
+      const newsItems = await page.evaluate(() => {
+        const items = [];
+        const idPatternDN = /DN(\d+)/;
+        const urlPattern = /id=(\d+)/;
+
+        document.querySelectorAll(".detalle").forEach((detalle) => {
+          try {
+            const href = detalle.querySelector(".titulo-norma a")?.href || "";
+            const titleElement = detalle.querySelector(".titulo-norma a");
+            const title = titleElement
+              ? titleElement.textContent.trim() +
+                " (" +
+                (detalle
+                  .querySelector(".subtitulo-norma")
+                  ?.textContent.trim() || "") +
+                ")"
+              : "";
+            const text =
+              detalle.querySelector(".sintesis")?.textContent.trim() || "";
+
+            // Extraer ID usando ambos patrones
+            const idMatchDN = href.match(idPatternDN);
+            const idMatchURL = href.match(urlPattern);
+            let id = null;
+
+            if (idMatchDN) {
+              id = parseInt(idMatchDN[1], 10);
+            } else if (idMatchURL) {
+              id = parseInt(idMatchURL[1], 10);
+            }
+
+            if (href && title && text && id) {
+              items.push({ href, title, text, id });
+            }
+          } catch (error) {
+            console.error("Error procesando norma:", error);
+          }
+        });
+        return items;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${newsItems.length} normas para procesar`
+      );
+
+      // Procesar normas en lotes
+      const BATCH_SIZE = 5;
+      let processedCount = 0;
+      let savedCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < newsItems.length; i += BATCH_SIZE) {
+        const batch = newsItems.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(
+          batch.map(async (item) => {
+            try {
+              const existingNews = await Acts.findOne({ id: item.id });
+
+              if (!existingNews) {
+                const newsItem = new Acts({
+                  ...item,
+                  siteId: "saij",
+                  notifiedByTelegram: false,
+                  notificationDate: null,
+                });
+                await newsItem.save();
+                savedCount++;
+                logWithDetails.info(
+                  `Norma guardada: ${item.title} (ID: ${item.id})`
+                );
+              } else {
+                logWithDetails.info(
+                  `Norma ya existe: ${item.title} (ID: ${item.id})`
+                );
+              }
+              processedCount++;
+            } catch (error) {
+              errorCount++;
+              logWithDetails.error(`Error guardando norma: ${item.title}`, {
+                error: error.message,
+                stack: error.stack,
+                itemData: item,
+              });
+            }
+          })
+        );
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${newsItems.length} normas procesadas`
+        );
+      }
+
+      return {
+        total: newsItems.length,
+        processed: processedCount,
+        saved: savedCount,
+        errors: errorCount,
+      };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de SAIJ completado", {
+      totalNormas: result.total,
+      normasProcesadas: result.processed,
+      normasGuardadas: result.saved,
+      errores: result.errors,
+    });
+
+    return result;
+  } catch (error) {
+    logWithDetails.error(`Error crítico en scrapeSaij: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  } finally {
+    if (browser) {
+      await browserPool.release(browser);
+    }
   }
 };
 
 const scrapeGPCourses = async () => {
+  let browser;
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-    // Navegar a la página de cursos
-    await page.goto(
-      "https://www.grupoprofessional.com.ar/cursos/cursos-streaming",
-      {
-        waitUntil: "networkidle2",
-      }
-    );
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-    // Extraer la información de los cursos
-    const cursos = await page.evaluate(() => {
-      const cursosElements = document.querySelectorAll(".card-block");
-      const cursosData = [];
-
-      cursosElements.forEach((cursoElement) => {
-        const title = cursoElement
-          .querySelector(".card-title")
-          ?.textContent.trim();
-        const date = cursoElement
-          .querySelector(".card-text")
-          ?.textContent.trim();
-        const link = cursoElement.querySelector("a")?.href;
-
-        if (title && date && link) {
-          cursosData.push({
-            title,
-            date,
-            link,
-          });
-        }
-      });
-
-      return cursosData;
-    });
-
-    for (let curso of cursos) {
-      await page.goto(curso.link, { waitUntil: "networkidle2" });
-
-      const additionalData = await page.evaluate(() => {
-        const priceElement = document.querySelector(".precio-curso");
-        const typeElement = document
-          .querySelector(".fa-video")
-          ?.parentElement?.textContent.trim();
-
-        const price = priceElement
-          ? priceElement.textContent.replace(/[^0-9]/g, "") + " ARS"
-          : "No disponible";
-        const type = typeElement || "No disponible";
-
-        return { price, type };
-      });
-
-      const parsedDate = parseDate(curso.date);
-
-      if (parsedDate) {
-        // Verificar si ya existe un curso con el mismo título y fecha
-        const existingCourse = await Courses.findOne({
-          title: curso.title,
-          date: parsedDate,
-        });
-
-        if (!existingCourse) {
-          // Si no existe, crear un nuevo registro
-          const nuevoCurso = new Courses({
-            title: curso.title,
-            date: parsedDate,
-            link: curso.link,
-            price: additionalData.price,
-            type: additionalData.type,
-            siteId: "Grupo Profesional",
-          });
-          await nuevoCurso.save();
-          logWithDetails.info(`Curso guardado: ${curso.title}`);
-        } else {
-          logWithDetails.info(
-            `Curso ya existe: ${curso.title}. No se guardará.`
-          );
-        }
-      } else {
-        logWithDetails.info(
-          `Fecha inválida para el curso: ${curso.title}. No se guardará.`
-        );
-      }
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
     }
 
-    await browser.close();
+    logWithDetails.info("Navegador adquirido exitosamente");
+
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
+
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de cursos de Grupo Professional");
+
+      // Navegar a la página principal de cursos
+      await page.goto(
+        "https://www.grupoprofessional.com.ar/cursos/cursos-streaming",
+        {
+          waitUntil: "networkidle2",
+          timeout: defaultPuppeteerConfig.timeout,
+        }
+      );
+
+      // Extraer listado inicial de cursos
+      const cursos = await page.evaluate(() => {
+        const cursosElements = document.querySelectorAll(".card-block");
+        const cursosData = [];
+
+        cursosElements.forEach((cursoElement) => {
+          try {
+            const title = cursoElement
+              .querySelector(".card-title")
+              ?.textContent.trim();
+            const date = cursoElement
+              .querySelector(".card-text")
+              ?.textContent.trim();
+            const link = cursoElement.querySelector("a")?.href;
+
+            if (title && date && link) {
+              cursosData.push({
+                title,
+                date,
+                link,
+              });
+            }
+          } catch (error) {
+            console.error("Error procesando curso:", error);
+          }
+        });
+
+        return cursosData;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${cursos.length} cursos para procesar`
+      );
+
+      // Procesar cursos en lotes
+      const BATCH_SIZE = 3; // Batch más pequeño por la navegación adicional
+      let processedCount = 0;
+      let savedCount = 0;
+      let errorCount = 0;
+      let invalidDateCount = 0;
+
+      for (let i = 0; i < cursos.length; i += BATCH_SIZE) {
+        const batch = cursos.slice(i, i + BATCH_SIZE);
+
+        for (const curso of batch) {
+          try {
+            // Navegar a la página del curso
+            await page.goto(curso.link, {
+              waitUntil: "networkidle2",
+              timeout: defaultPuppeteerConfig.timeout,
+            });
+
+            // Extraer datos adicionales
+            const additionalData = await page.evaluate(() => {
+              const priceElement = document.querySelector(".precio-curso");
+              const typeElement = document
+                .querySelector(".fa-video")
+                ?.parentElement?.textContent.trim();
+
+              return {
+                price: priceElement
+                  ? priceElement.textContent.replace(/[^0-9]/g, "") + " ARS"
+                  : "No disponible",
+                type: typeElement || "No disponible",
+              };
+            });
+
+            const parsedDate = parseDate(curso.date);
+
+            if (parsedDate) {
+              const existingCourse = await Courses.findOne({
+                title: curso.title,
+                date: parsedDate,
+              });
+
+              if (!existingCourse) {
+                const nuevoCurso = new Courses({
+                  title: curso.title,
+                  date: parsedDate,
+                  link: curso.link,
+                  price: additionalData.price,
+                  type: additionalData.type,
+                  siteId: "Grupo Profesional",
+                });
+                await nuevoCurso.save();
+                savedCount++;
+                logWithDetails.info(
+                  `Curso guardado: ${
+                    curso.title
+                  } (Fecha: ${parsedDate.toISOString()})`
+                );
+              } else {
+                logWithDetails.info(`Curso ya existe: ${curso.title}`);
+              }
+              processedCount++;
+            } else {
+              invalidDateCount++;
+              logWithDetails.warn(
+                `Fecha inválida para el curso: ${curso.title} (${curso.date})`
+              );
+            }
+          } catch (error) {
+            errorCount++;
+            logWithDetails.error(`Error procesando curso: ${curso.title}`, {
+              error: error.message,
+              stack: error.stack,
+              cursoData: curso,
+            });
+          }
+        }
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${cursos.length} cursos procesados`
+        );
+      }
+
+      return {
+        total: cursos.length,
+        processed: processedCount,
+        saved: savedCount,
+        errors: errorCount,
+        invalidDates: invalidDateCount,
+      };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de Grupo Professional completado", {
+      totalCursos: result.total,
+      cursosProcesados: result.processed,
+      cursosGuardados: result.saved,
+      errores: result.errors,
+      fechasInvalidas: result.invalidDates,
+    });
+
+    return result;
   } catch (error) {
-    logWithDetails.error("Error durante el scraping:", error);
+    logWithDetails.error(`Error crítico en scrapeGPCourses: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  } finally {
+    if (browser) {
+      await browserPool.release(browser);
+    }
   }
 };
 
 const scrapeDiplomados = async () => {
+  let browser;
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-    // Navegar a la página de diplomados de derecho
-    await page.goto(
-      "https://www.grupoprofessional.com.ar/diplomados-derecho/",
-      {
-        waitUntil: "networkidle2",
-      }
-    );
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-    // Extraer la información de los diplomados
-    const diplomados = await page.evaluate(() => {
-      const diplomadosElements = document.querySelectorAll(
-        ".col-md-4.card-diplomado-individual"
-      );
-      const diplomadosData = [];
-
-      diplomadosElements.forEach((diplomadoElement) => {
-        const titleElement = diplomadoElement.querySelector(".card-title a");
-        const linkElement = diplomadoElement.querySelector(".card-title a");
-
-        const title = titleElement?.textContent.trim();
-        const link = linkElement?.href;
-
-        if (title && link) {
-          diplomadosData.push({
-            title,
-            link,
-          });
-        }
-      });
-
-      return diplomadosData;
-    });
-
-    // Iterar sobre cada diplomado para extraer datos adicionales y guardar en la base de datos
-    for (let diplomado of diplomados) {
-      await page.goto(diplomado.link, { waitUntil: "networkidle2" });
-
-      const additionalData = await page.evaluate(() => {
-        const formatPrice = (priceString) => {
-          const numericPrice = priceString
-            .replace(/[^0-9,]/g, "")
-            .replace(",", ".");
-          return `${numericPrice} ARS`;
-        };
-
-        const dateElement = document
-          .querySelector(".fa-calendar-alt")
-          ?.parentElement?.textContent.trim();
-        const typeElement = document
-          .querySelector(".fa-video")
-          ?.parentElement?.textContent.trim();
-
-        // Extraer el precio del curso si existe
-
-        const priceElement = document.querySelector(".datos-precio h3");
-        const priceText = priceElement
-          ? priceElement.childNodes[0].textContent.trim()
-          : null;
-
-        // Extraer solo la parte relevante de las cadenas de texto
-        const date = dateElement
-          ? dateElement.replace("Fecha de inicio:", "").trim()
-          : null;
-        const type = typeElement
-          ? typeElement.replace("Modalidad  de cursada:", "").trim()
-          : "Modalidad no disponible";
-        const price = priceText
-          ? formatPrice(priceText)
-          : "Precio no disponible";
-
-        return { date, type, price };
-      });
-
-      // Parsear la fecha a formato Date usando moment.js
-      diplomado.date = additionalData.date
-        ? parseDateFormat(additionalData.date)
-        : null;
-      diplomado.type = additionalData.type;
-      diplomado.price = additionalData.price;
-
-      // Verificar si ya existe un curso con el mismo título y fecha
-      const existingCourse = await Courses.findOne({
-        title: diplomado.title,
-        date: diplomado.date,
-      });
-
-      if (!existingCourse) {
-        // Si no existe, crear un nuevo registro
-        const nuevoCurso = new Courses({
-          title: diplomado.title,
-          date: diplomado.date,
-          link: diplomado.link,
-          price: diplomado.price,
-          type: diplomado.type,
-          siteId: "Grupo Profesional",
-        });
-        await nuevoCurso.save();
-        logWithDetails.info(`Curso guardado: ${diplomado.title}`);
-      } else {
-        logWithDetails.info(
-          `Curso ya existe: ${diplomado.title}. No se guardará.`
-        );
-      }
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
     }
 
-    await browser.close();
+    logWithDetails.info("Navegador adquirido exitosamente");
+
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
+
+    const scrapeOperation = async () => {
+      logWithDetails.info(
+        "Iniciando scraping de diplomados de Grupo Professional"
+      );
+
+      // Navegar a la página de diplomados
+      await page.goto(
+        "https://www.grupoprofessional.com.ar/diplomados-derecho/",
+        {
+          waitUntil: "networkidle2",
+          timeout: defaultPuppeteerConfig.timeout,
+        }
+      );
+
+      // Extraer listado inicial de diplomados
+      const diplomados = await page.evaluate(() => {
+        const diplomadosElements = document.querySelectorAll(
+          ".col-md-4.card-diplomado-individual"
+        );
+        const diplomadosData = [];
+
+        diplomadosElements.forEach((diplomadoElement) => {
+          try {
+            const titleElement =
+              diplomadoElement.querySelector(".card-title a");
+            const linkElement = diplomadoElement.querySelector(".card-title a");
+
+            if (titleElement && linkElement) {
+              const title = titleElement.textContent.trim();
+              const link = linkElement.href;
+
+              if (title && link) {
+                diplomadosData.push({ title, link });
+              }
+            }
+          } catch (error) {
+            console.error("Error procesando diplomado:", error);
+          }
+        });
+
+        return diplomadosData;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${diplomados.length} diplomados para procesar`
+      );
+
+      // Procesar diplomados en lotes
+      const BATCH_SIZE = 3; // Batch pequeño por la navegación adicional
+      let processedCount = 0;
+      let savedCount = 0;
+      let errorCount = 0;
+      let invalidDateCount = 0;
+
+      for (let i = 0; i < diplomados.length; i += BATCH_SIZE) {
+        const batch = diplomados.slice(i, i + BATCH_SIZE);
+
+        for (const diplomado of batch) {
+          try {
+            // Navegar a la página del diplomado
+            await page.goto(diplomado.link, {
+              waitUntil: "networkidle2",
+              timeout: defaultPuppeteerConfig.timeout,
+            });
+
+            // Extraer datos adicionales
+            const additionalData = await page.evaluate(() => {
+              const formatPrice = (priceString) => {
+                const numericPrice = priceString
+                  .replace(/[^0-9,]/g, "")
+                  .replace(",", ".");
+                return `${numericPrice} ARS`;
+              };
+
+              const dateElement = document
+                .querySelector(".fa-calendar-alt")
+                ?.parentElement?.textContent.trim();
+              const typeElement = document
+                .querySelector(".fa-video")
+                ?.parentElement?.textContent.trim();
+              const priceElement = document.querySelector(".datos-precio h3");
+              const priceText = priceElement
+                ? priceElement.childNodes[0].textContent.trim()
+                : null;
+
+              return {
+                date: dateElement
+                  ? dateElement.replace("Fecha de inicio:", "").trim()
+                  : null,
+                type: typeElement
+                  ? typeElement.replace("Modalidad  de cursada:", "").trim()
+                  : "Modalidad no disponible",
+                price: priceText
+                  ? formatPrice(priceText)
+                  : "Precio no disponible",
+              };
+            });
+
+            // Parsear la fecha
+            const parsedDate = additionalData.date
+              ? parseDateFormat(additionalData.date)
+              : null;
+
+            if (parsedDate) {
+              const existingCourse = await Courses.findOne({
+                title: diplomado.title,
+                date: parsedDate,
+              });
+
+              if (!existingCourse) {
+                const nuevoCurso = new Courses({
+                  title: diplomado.title,
+                  date: parsedDate,
+                  link: diplomado.link,
+                  price: additionalData.price,
+                  type: additionalData.type,
+                  siteId: "Grupo Profesional",
+                });
+                await nuevoCurso.save();
+                savedCount++;
+                logWithDetails.info(
+                  `Diplomado guardado: ${
+                    diplomado.title
+                  } (Fecha: ${parsedDate.toISOString()})`
+                );
+              } else {
+                logWithDetails.info(`Diplomado ya existe: ${diplomado.title}`);
+              }
+              processedCount++;
+            } else {
+              invalidDateCount++;
+              logWithDetails.warn(
+                `Fecha inválida para el diplomado: ${diplomado.title} (${additionalData.date})`
+              );
+            }
+          } catch (error) {
+            errorCount++;
+            logWithDetails.error(
+              `Error procesando diplomado: ${diplomado.title}`,
+              {
+                error: error.message,
+                stack: error.stack,
+                diplomadoData: diplomado,
+              }
+            );
+          }
+        }
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${diplomados.length} diplomados procesados`
+        );
+      }
+
+      return {
+        total: diplomados.length,
+        processed: processedCount,
+        saved: savedCount,
+        errors: errorCount,
+        invalidDates: invalidDateCount,
+      };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de diplomados completado", {
+      totalDiplomados: result.total,
+      diplomadosProcesados: result.processed,
+      diplomadosGuardados: result.saved,
+      errores: result.errors,
+      fechasInvalidas: result.invalidDates,
+    });
+
+    return result;
   } catch (error) {
-    logWithDetails.error(error);
-    logWithDetails.error("Error durante el scraping:", error);
+    logWithDetails.error(`Error crítico en scrapeDiplomados: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  } finally {
+    if (browser) {
+      await browserPool.release(browser);
+    }
   }
 };
 
 const scrapeUBATalleres = async () => {
+  let browser;
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-    // Navegar a la página de talleres
-    await page.goto("http://www.derecho.uba.ar/graduados/talleres/", {
-      waitUntil: "networkidle2",
-    });
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-    // Extraer la información de los talleres
-    const talleres = await page.evaluate(() => {
-      const talleresElements = document.querySelectorAll(".modulo");
-      const talleresData = [];
-
-      talleresElements.forEach((tallerElement) => {
-        const titleElement = tallerElement.querySelector("h3 a");
-        const title = titleElement?.textContent.replace(/^\d+\.\s*/, "").trim(); // Eliminar la numeración
-        const link = titleElement?.href;
-        const typeElement = tallerElement.querySelector("span.badge");
-        const type = typeElement?.textContent.trim();
-
-        // Extraer el texto que contiene la fecha
-        const contenidoElement = tallerElement.querySelector(".contenido p");
-        let dateText = null;
-
-        if (contenidoElement) {
-          const regex = /(\d{2} de [a-zA-Z]+(?: de \d{4})?)/;
-          const match = contenidoElement.textContent.match(regex);
-          if (match) {
-            dateText = match[0];
-          }
-        }
-
-        if (title && link && type && dateText) {
-          talleresData.push({
-            title,
-            link,
-            dateText, // Pasamos la fecha como texto para procesarla fuera de evaluate
-            type,
-            siteId: "UBA Derecho",
-          });
-        }
-      });
-
-      return talleresData;
-    });
-
-    // Procesar la fecha usando moment fuera de evaluate y guardar los cursos
-    for (let taller of talleres) {
-      if (taller.dateText) {
-        let dateText = taller.dateText;
-        if (!/\d{4}/.test(dateText)) {
-          dateText += ` de ${new Date().getFullYear()}`;
-        }
-        taller.date = moment(dateText, "DD [de] MMMM [de] YYYY", "es").toDate();
-        delete taller.dateText; // Eliminar el campo dateText ya que ahora tenemos el campo date
-
-        // Verificar si ya existe un curso con el mismo título y fecha
-        const existingCourse = await Courses.findOne({
-          title: taller.title,
-          date: taller.date,
-        });
-
-        if (!existingCourse) {
-          // Si no existe, crear un nuevo registro
-          const nuevoCurso = new Courses({
-            title: taller.title,
-            date: taller.date,
-            link: taller.link,
-            type: taller.type,
-            siteId: taller.siteId,
-          });
-          await nuevoCurso.save();
-          logWithDetails.info(`Curso guardado: ${taller.title}`);
-        } else {
-          logWithDetails.info(
-            `Curso ya existe: ${taller.title}. No se guardará.`
-          );
-        }
-      }
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
     }
 
-    await browser.close();
+    logWithDetails.info("Navegador adquirido exitosamente");
+
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
+
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de talleres UBA");
+
+      await page.goto("http://www.derecho.uba.ar/graduados/talleres/", {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
+      });
+
+      // Extraer información de talleres
+      const talleres = await page.evaluate(() => {
+        const talleresElements = document.querySelectorAll(".modulo");
+        const talleresData = [];
+
+        talleresElements.forEach((tallerElement) => {
+          try {
+            const titleElement = tallerElement.querySelector("h3 a");
+            const title = titleElement?.textContent
+              .replace(/^\d+\.\s*/, "")
+              .trim();
+            const link = titleElement?.href;
+            const typeElement = tallerElement.querySelector("span.badge");
+            const type = typeElement?.textContent.trim();
+
+            const contenidoElement =
+              tallerElement.querySelector(".contenido p");
+            let dateText = null;
+
+            if (contenidoElement) {
+              const regex = /(\d{2} de [a-zA-Z]+(?: de \d{4})?)/;
+              const match = contenidoElement.textContent.match(regex);
+              if (match) {
+                dateText = match[0];
+              }
+            }
+
+            if (title && link && type && dateText) {
+              talleresData.push({
+                title,
+                link,
+                dateText,
+                type,
+                siteId: "UBA Derecho",
+              });
+            }
+          } catch (error) {
+            console.error("Error procesando taller:", error);
+          }
+        });
+
+        return talleresData;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${talleres.length} talleres para procesar`
+      );
+
+      // Procesar talleres en lotes
+      const BATCH_SIZE = 5;
+      let processedCount = 0;
+      let savedCount = 0;
+      let errorCount = 0;
+      let invalidDateCount = 0;
+
+      for (let i = 0; i < talleres.length; i += BATCH_SIZE) {
+        const batch = talleres.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(
+          batch.map(async (taller) => {
+            try {
+              if (taller.dateText) {
+                let dateText = taller.dateText;
+                if (!/\d{4}/.test(dateText)) {
+                  dateText += ` de ${new Date().getFullYear()}`;
+                }
+
+                const parsedDate = moment(
+                  dateText,
+                  "DD [de] MMMM [de] YYYY",
+                  "es"
+                );
+
+                if (parsedDate.isValid()) {
+                  const existingCourse = await Courses.findOne({
+                    title: taller.title,
+                    date: parsedDate.toDate(),
+                  });
+
+                  if (!existingCourse) {
+                    const nuevoCurso = new Courses({
+                      title: taller.title,
+                      date: parsedDate.toDate(),
+                      link: taller.link,
+                      type: taller.type,
+                      siteId: taller.siteId,
+                    });
+                    await nuevoCurso.save();
+                    savedCount++;
+                    logWithDetails.info(
+                      `Taller guardado: ${
+                        taller.title
+                      } (Fecha: ${parsedDate.format("DD/MM/YYYY")})`
+                    );
+                  } else {
+                    logWithDetails.info(`Taller ya existe: ${taller.title}`);
+                  }
+                  processedCount++;
+                } else {
+                  invalidDateCount++;
+                  logWithDetails.warn(
+                    `Fecha inválida para el taller: ${taller.title} (${dateText})`
+                  );
+                }
+              } else {
+                invalidDateCount++;
+                logWithDetails.warn(
+                  `Fecha no encontrada para el taller: ${taller.title}`
+                );
+              }
+            } catch (error) {
+              errorCount++;
+              logWithDetails.error(`Error procesando taller: ${taller.title}`, {
+                error: error.message,
+                stack: error.stack,
+                tallerData: taller,
+              });
+            }
+          })
+        );
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${talleres.length} talleres procesados`
+        );
+      }
+
+      return {
+        total: talleres.length,
+        processed: processedCount,
+        saved: savedCount,
+        errors: errorCount,
+        invalidDates: invalidDateCount,
+      };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de talleres UBA completado", {
+      totalTalleres: result.total,
+      talleresProcesados: result.processed,
+      talleresGuardados: result.saved,
+      errores: result.errors,
+      fechasInvalidas: result.invalidDates,
+    });
+
+    return result;
   } catch (error) {
-    logWithDetails.error("Error durante el scraping:", error);
+    logWithDetails.error(`Error crítico en scrapeUBATalleres: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  } finally {
+    if (browser) {
+      await browserPool.release(browser);
+    }
   }
 };
 
 const scrapeUBAProgramas = async () => {
+  let browser;
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
-    const page = await browser.newPage();
+  logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
 
-    // Navegar a la página de programas de perfeccionamiento
-    await page.goto(
-      "http://www.derecho.uba.ar/graduados/programas-de-perfeccionamiento/",
-      {
-        waitUntil: "networkidle2",
-      }
-    );
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
 
-    // Función para formatear el precio
-    const formatPrice = (priceString) => {
-      if (priceString === "Gratis") return "0 ARS";
-      const numericPrice = priceString.replace(/[^\d,]/g, "").replace(",", ".");
-      return `${parseFloat(numericPrice.replace(".", ""))} ARS`;
-    };
-
-    // Extraer la información de los programas
-    const programas = await page.evaluate(() => {
-      const programasElements = document.querySelectorAll(".modulo");
-      const programasData = [];
-
-      programasElements.forEach((programaElement) => {
-        const titleElement = programaElement.querySelector("h3 a");
-        let title = titleElement?.textContent.replace(/^\d+\.\s*/, "").trim(); // Eliminar la numeración
-
-        // Eliminar el guion y los espacios al inicio si quedan
-        title = title.replace(/^-+\s*/, "").trim();
-
-        const link = titleElement?.href;
-        const typeElement = programaElement.querySelector("span.badge");
-        const type = typeElement?.textContent.trim();
-
-        // Extraer la fecha de inicio
-        const contenidoElement = programaElement.querySelector(".contenido p");
-        let dateText = null;
-
-        if (contenidoElement) {
-          const regex = /(\d{2}-\d{2}-\d{4})/; // Expresión regular para capturar la fecha en formato "dd-mm-yyyy"
-          const match = contenidoElement.textContent.match(regex);
-          if (match) {
-            dateText = match[0];
-          }
-        }
-
-        // Extraer los precios
-        let priceUBA = null;
-        let priceOthers = null;
-
-        if (contenidoElement) {
-          const priceUBAMatch = contenidoElement.textContent.match(
-            /Precio para graduadas\/os UBA: (Gratis|\$\d{1,3}(?:\.\d{3})*)/
-          );
-          const priceOthersMatch = contenidoElement.textContent.match(
-            /Precio para graduadas\/os de otras universidades: (Gratis|\$\d{1,3}(?:\.\d{3})*)/
-          );
-
-          priceUBA = priceUBAMatch ? priceUBAMatch[1].trim() : "No disponible";
-          priceOthers = priceOthersMatch
-            ? priceOthersMatch[1].trim()
-            : "No disponible";
-        }
-
-        if (title && link && type && dateText) {
-          programasData.push({
-            title,
-            link,
-            dateText, // Pasamos la fecha como texto para procesarla fuera de evaluate
-            type,
-            siteId: "UBA Derecho",
-            priceUBA,
-            priceOthers,
-          });
-        }
-      });
-
-      return programasData;
-    });
-
-    // Procesar la fecha y precios usando moment fuera de evaluate y guardar los programas
-    for (let programa of programas) {
-      if (programa.dateText) {
-        programa.date = moment(programa.dateText, "DD-MM-YYYY").toDate();
-        delete programa.dateText; // Eliminar el campo dateText ya que ahora tenemos el campo date
-
-        // Formatear los precios
-        programa.priceUBA = programa.priceUBA
-          ? formatPrice(programa.priceUBA)
-          : "No disponible";
-        programa.priceOthers = programa.priceOthers
-          ? formatPrice(programa.priceOthers)
-          : "No disponible";
-
-        // Verificar si ya existe un programa con el mismo título y fecha
-        const existingCourse = await Courses.findOne({
-          title: programa.title,
-          date: programa.date,
-        });
-
-        if (!existingCourse) {
-          // Si no existe, crear un nuevo registro
-          const nuevoPrograma = new Courses({
-            title: programa.title,
-            date: programa.date,
-            link: programa.link,
-            type: programa.type,
-            siteId: programa.siteId,
-            priceUBA: programa.priceUBA,
-            price: programa.priceOthers,
-          });
-          await nuevoPrograma.save();
-          logWithDetails.info(`Programa guardado: ${programa.title}`);
-        } else {
-          logWithDetails.info(
-            `Programa ya existe: ${programa.title}. No se guardará.`
-          );
-        }
-      }
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
     }
 
-    await browser.close();
+    logWithDetails.info("Navegador adquirido exitosamente");
+
+    const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
+
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de programas UBA");
+
+      await page.goto(
+        "http://www.derecho.uba.ar/graduados/programas-de-perfeccionamiento/",
+        {
+          waitUntil: "networkidle2",
+          timeout: defaultPuppeteerConfig.timeout,
+        }
+      );
+
+      // Extraer información de programas
+      const programas = await page.evaluate(() => {
+        const programasElements = document.querySelectorAll(".modulo");
+        const programasData = [];
+
+        programasElements.forEach((programaElement) => {
+          try {
+            const titleElement = programaElement.querySelector("h3 a");
+            let title = titleElement?.textContent
+              .replace(/^\d+\.\s*/, "")
+              .trim();
+            title = title.replace(/^-+\s*/, "").trim();
+
+            const link = titleElement?.href;
+            const typeElement = programaElement.querySelector("span.badge");
+            const type = typeElement?.textContent.trim();
+            const contenidoElement =
+              programaElement.querySelector(".contenido p");
+            let dateText = null;
+
+            if (contenidoElement) {
+              const regex = /(\d{2}-\d{2}-\d{4})/;
+              const match = contenidoElement.textContent.match(regex);
+              if (match) {
+                dateText = match[0];
+              }
+
+              const priceUBAMatch = contenidoElement.textContent.match(
+                /Precio para graduadas\/os UBA: (Gratis|\$\d{1,3}(?:\.\d{3})*)/
+              );
+              const priceOthersMatch = contenidoElement.textContent.match(
+                /Precio para graduadas\/os de otras universidades: (Gratis|\$\d{1,3}(?:\.\d{3})*)/
+              );
+
+              const priceUBA = priceUBAMatch
+                ? priceUBAMatch[1].trim()
+                : "No disponible";
+              const priceOthers = priceOthersMatch
+                ? priceOthersMatch[1].trim()
+                : "No disponible";
+
+              if (title && link && type && dateText) {
+                programasData.push({
+                  title,
+                  link,
+                  dateText,
+                  type,
+                  siteId: "UBA Derecho",
+                  priceUBA,
+                  priceOthers,
+                });
+              }
+            }
+          } catch (error) {
+            console.error("Error procesando programa:", error);
+          }
+        });
+
+        return programasData;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${programas.length} programas para procesar`
+      );
+
+      // Procesar programas en lotes
+      const BATCH_SIZE = 5;
+      let processedCount = 0;
+      let savedCount = 0;
+      let errorCount = 0;
+      let invalidDateCount = 0;
+
+      for (let i = 0; i < programas.length; i += BATCH_SIZE) {
+        const batch = programas.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(
+          batch.map(async (programa) => {
+            try {
+              if (programa.dateText) {
+                const parsedDate = moment(programa.dateText, "DD-MM-YYYY");
+
+                if (parsedDate.isValid()) {
+                  // Formatear precios
+                  const formattedPriceUBA = programa.priceUBA
+                    ? formatPrice(programa.priceUBA)
+                    : "No disponible";
+                  const formattedPriceOthers = programa.priceOthers
+                    ? formatPrice(programa.priceOthers)
+                    : "No disponible";
+
+                  const existingCourse = await Courses.findOne({
+                    title: programa.title,
+                    date: parsedDate.toDate(),
+                  });
+
+                  if (!existingCourse) {
+                    const nuevoPrograma = new Courses({
+                      title: programa.title,
+                      date: parsedDate.toDate(),
+                      link: programa.link,
+                      type: programa.type,
+                      siteId: programa.siteId,
+                      priceUBA: formattedPriceUBA,
+                      price: formattedPriceOthers,
+                    });
+                    await nuevoPrograma.save();
+                    savedCount++;
+                    logWithDetails.info(
+                      `Programa guardado: ${
+                        programa.title
+                      } (Fecha: ${parsedDate.format("DD/MM/YYYY")})`
+                    );
+                  } else {
+                    logWithDetails.info(
+                      `Programa ya existe: ${programa.title}`
+                    );
+                  }
+                  processedCount++;
+                } else {
+                  invalidDateCount++;
+                  logWithDetails.warn(
+                    `Fecha inválida para el programa: ${programa.title} (${programa.dateText})`
+                  );
+                }
+              } else {
+                invalidDateCount++;
+                logWithDetails.warn(
+                  `Fecha no encontrada para el programa: ${programa.title}`
+                );
+              }
+            } catch (error) {
+              errorCount++;
+              logWithDetails.error(
+                `Error procesando programa: ${programa.title}`,
+                {
+                  error: error.message,
+                  stack: error.stack,
+                  programaData: programa,
+                }
+              );
+            }
+          })
+        );
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${programas.length} programas procesados`
+        );
+      }
+
+      return {
+        total: programas.length,
+        processed: processedCount,
+        saved: savedCount,
+        errors: errorCount,
+        invalidDates: invalidDateCount,
+      };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de programas UBA completado", {
+      totalProgramas: result.total,
+      programasProcesados: result.processed,
+      programasGuardados: result.saved,
+      errores: result.errors,
+      fechasInvalidas: result.invalidDates,
+    });
+
+    return result;
   } catch (error) {
-    logWithDetails.error("Error durante el scraping:", error);
+    logWithDetails.error(
+      `Error crítico en scrapeUBAProgramas: ${error.stack}`,
+      {
+        error: error.message,
+        stack: error.stack,
+      }
+    );
+    throw error;
+  } finally {
+    if (browser) {
+      await browserPool.release(browser);
+    }
   }
 };
 
 const scrapeFeesData = async () => {
+  let browser;
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-      ],
-    });
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
+
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
+
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
+
+    logWithDetails.info("Navegador adquirido exitosamente");
+
     const page = await browser.newPage();
-    // Navegar a la página de programas de perfeccionamiento
-    await page.goto(process.env.FEES_PAGE, {
-      timeout: 90000, // 60 segundo
-      waitUntil: "networkidle2",
-    });
+    logWithDetails.info("Nueva página creada");
 
-    const rows = await page.evaluate(() => {
-      const tableRows = document.querySelectorAll("table tbody tr");
-      const data = [];
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de fees PJN");
 
-      tableRows.forEach((row) => {
-        const columns = row.querySelectorAll("td");
-        if (columns.length === 5) {
-          const fechaRaw = columns[1].innerText.trim();
-          const vigenciaRaw = columns[4].innerText.trim();
-          const montoRaw = columns[2].innerText.trim();
-          const montoSinPunto = montoRaw.replace(".", "");
-
-          // Aquí almacenamos las fechas y el monto en strings
-          const resolucion = columns[0].innerText.trim();
-          const fecha = fechaRaw; // Será procesada con Moment.js más adelante
-          const monto = montoSinPunto; // Será procesada para convertirla en un número
-          const periodo = columns[3].innerText.trim();
-          const vigencia = vigenciaRaw; // Será procesada con Moment.js más adelante
-
-          data.push({
-            resolucion,
-            fecha,
-            monto,
-            periodo,
-            vigencia,
-            type: "UMA PJN Ley 27.423",
-            organization: "Poder Judicial de la Nación",
-          });
-        }
+      await page.goto(process.env.FEES_PAGE, {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
       });
 
-      return data;
-    });
+      // Extraer datos de la tabla
+      const rows = await page.evaluate(() => {
+        const tableRows = document.querySelectorAll("table tbody tr");
+        const data = [];
 
-    // Procesamos los datos para convertir fecha y vigencia con moment.js y monto a number
-    const processedData = rows.map((row) => {
+        tableRows.forEach((row) => {
+          try {
+            const columns = row.querySelectorAll("td");
+            if (columns.length === 5) {
+              const [
+                resolucionCol,
+                fechaCol,
+                montoCol,
+                periodoCol,
+                vigenciaCol,
+              ] = [...columns];
+
+              data.push({
+                resolucion: resolucionCol.innerText.trim(),
+                fecha: fechaCol.innerText.trim(),
+                monto: montoCol.innerText.trim().replace(".", ""),
+                periodo: periodoCol.innerText.trim(),
+                vigencia: vigenciaCol.innerText.trim(),
+                type: "UMA PJN Ley 27.423",
+                organization: "Poder Judicial de la Nación",
+              });
+            }
+          } catch (error) {
+            console.error("Error procesando fila:", error);
+          }
+        });
+
+        return data;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${rows.length} registros de fees para procesar`
+      );
+
+      // Procesar datos en lotes
+      const BATCH_SIZE = 10;
+      let processedCount = 0;
+      let validCount = 0;
+      let invalidCount = 0;
+      const processedData = [];
+
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+
+        batch.forEach((row) => {
+          try {
+            const fechaParsed = moment(row.fecha, "DD/MM/YYYY");
+            const vigenciaParsed = moment(row.vigencia, "DD/MM/YYYY");
+            const montoParsed = parseFloat(
+              row.monto.replace(/[^0-9,.-]+/g, "").replace(",", ".")
+            );
+
+            if (
+              fechaParsed.isValid() &&
+              vigenciaParsed.isValid() &&
+              !isNaN(montoParsed)
+            ) {
+              processedData.push({
+                ...row,
+                fecha: fechaParsed.toDate(),
+                vigencia: vigenciaParsed.toDate(),
+                monto: montoParsed,
+              });
+              validCount++;
+            } else {
+              invalidCount++;
+              logWithDetails.warn(`Datos inválidos en registro:`, {
+                resolucion: row.resolucion,
+                fecha: row.fecha,
+                vigencia: row.vigencia,
+                monto: row.monto,
+              });
+            }
+            processedCount++;
+          } catch (error) {
+            invalidCount++;
+            logWithDetails.error(`Error procesando registro:`, {
+              error: error.message,
+              data: row,
+            });
+          }
+        });
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${rows.length} registros procesados`
+        );
+      }
+
+      if (processedData.length > 0) {
+        await saveFeesValuesAfterLastVigencia(processedData);
+        logWithDetails.info(
+          `Guardados ${processedData.length} registros de fees`
+        );
+      }
+
       return {
-        ...row,
-        fecha: moment(row.fecha, "DD/MM/YYYY").toDate(), // Conviertes la fecha usando el formato correcto
-        vigencia: moment(row.vigencia, "DD/MM/YYYY").toDate(), // Conviertes la vigencia también
-        monto: parseFloat(
-          row.monto.replace(/[^0-9,.-]+/g, "").replace(",", ".")
-        ), // Limpia y convierte el monto a número
+        total: rows.length,
+        processed: processedCount,
+        valid: validCount,
+        invalid: invalidCount,
       };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de fees PJN completado", {
+      totalRegistros: result.total,
+      registrosProcesados: result.processed,
+      registrosValidos: result.valid,
+      registrosInvalidos: result.invalid,
     });
 
-    await saveFeesValuesAfterLastVigencia(processedData);
-  } catch (err) {
-    logWithDetails.error(`Error scraping fees data: ${err}`);
+    return result;
+  } catch (error) {
+    logWithDetails.error(`Error crítico en scrapeFeesData: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+    });
+    throw error;
+  } finally {
+    if (browser) {
+      await browserPool.release(browser);
+    }
   }
 };
 
 const scrapeFeesDataCABA = async () => {
+  let browser;
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-      ],
-    });
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
+
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
+
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
+
+    logWithDetails.info("Navegador adquirido exitosamente");
+
     const page = await browser.newPage();
-    // Navegar a la página de programas de perfeccionamiento
-    await page.goto(process.env.FEES_PAGE_2, {
-      timeout: 90000, // 60 segundo
-      waitUntil: "networkidle2",
-    });
+    logWithDetails.info("Nueva página creada");
 
-    const rows = await page.evaluate(() => {
-      const tableRows = document.querySelectorAll("table tbody tr");
-      const data = [];
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de fees CABA");
 
-      tableRows.forEach((row) => {
-        const columns = row.querySelectorAll("td");
-        if (columns.length === 5) {
-          const fechaRaw = columns[1].innerText.trim();
-          const vigenciaRaw = columns[4].innerText.trim();
-          const montoRaw = columns[2].innerText.trim();
-          const montoSinPunto = montoRaw.replace(".", "");
-          // Aquí almacenamos las fechas y el monto en strings
-          const resolucion = columns[0].innerText.trim();
-          const fecha = fechaRaw; // Será procesada con Moment.js más adelante
-          const monto = montoSinPunto; // Será procesada para convertirla en un número
-          const periodo = columns[3].innerText.trim();
-          const vigencia = vigenciaRaw; // Será procesada con Moment.js más adelante
-
-          data.push({
-            resolucion,
-            fecha,
-            monto,
-            periodo,
-            vigencia,
-            type: "UMA PJ CABA Ley 5.134",
-            organization: "Poder Judicial de la Ciudad de Buenos Aires",
-          });
-        }
+      await page.goto(process.env.FEES_PAGE_2, {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
       });
 
-      return data;
-    });
+      // Extraer datos de la tabla
+      const rows = await page.evaluate(() => {
+        const tableRows = document.querySelectorAll("table tbody tr");
+        const data = [];
 
-    // Procesamos los datos para convertir fecha y vigencia con moment.js y monto a number
-    const processedData = rows.map((row) => {
-      const parsedFecha = moment(row.fecha, "DD/MM/YYYY");
-      const parsedVigencia = moment(row.vigencia, "DD/MM/YYYY");
+        tableRows.forEach((row) => {
+          try {
+            const columns = row.querySelectorAll("td");
+            if (columns.length === 5) {
+              const [
+                resolucionCol,
+                fechaCol,
+                montoCol,
+                periodoCol,
+                vigenciaCol,
+              ] = [...columns];
+
+              data.push({
+                resolucion: resolucionCol.innerText.trim(),
+                fecha: fechaCol.innerText.trim(),
+                monto: montoCol.innerText.trim().replace(".", ""),
+                periodo: periodoCol.innerText.trim(),
+                vigencia: vigenciaCol.innerText.trim(),
+                type: "UMA PJ CABA Ley 5.134",
+                organization: "Poder Judicial de la Ciudad de Buenos Aires",
+              });
+            }
+          } catch (error) {
+            console.error("Error procesando fila:", error);
+          }
+        });
+
+        return data;
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${rows.length} registros de fees CABA para procesar`
+      );
+
+      // Procesar datos en lotes
+      const BATCH_SIZE = 10;
+      let processedCount = 0;
+      let validCount = 0;
+      let invalidCount = 0;
+      const processedData = [];
+
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+
+        batch.forEach((row) => {
+          try {
+            const parsedFecha = moment(row.fecha, "DD/MM/YYYY");
+            const parsedVigencia = moment(row.vigencia, "DD/MM/YYYY");
+            const montoParsed = parseFloat(
+              row.monto.replace(/[^0-9,.-]+/g, "").replace(",", ".")
+            );
+
+            if (
+              (parsedFecha.isValid() || !row.fecha) &&
+              (parsedVigencia.isValid() || !row.vigencia) &&
+              !isNaN(montoParsed)
+            ) {
+              processedData.push({
+                ...row,
+                fecha: parsedFecha.isValid() ? parsedFecha.toDate() : null,
+                vigencia: parsedVigencia.isValid()
+                  ? parsedVigencia.toDate()
+                  : null,
+                monto: montoParsed,
+              });
+              validCount++;
+            } else {
+              invalidCount++;
+              logWithDetails.warn(`Datos inválidos en registro CABA:`, {
+                resolucion: row.resolucion,
+                fecha: row.fecha,
+                vigencia: row.vigencia,
+                monto: row.monto,
+              });
+            }
+            processedCount++;
+          } catch (error) {
+            invalidCount++;
+            logWithDetails.error(`Error procesando registro CABA:`, {
+              error: error.message,
+              data: row,
+            });
+          }
+        });
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${rows.length} registros procesados`
+        );
+      }
+
+      if (processedData.length > 0) {
+        await saveFeesValuesAfterLastVigenciaCaba(processedData);
+        logWithDetails.info(
+          `Guardados ${processedData.length} registros de fees CABA`
+        );
+      }
 
       return {
-        ...row,
-        fecha: parsedFecha.isValid() ? parsedFecha.toDate() : null, // Verifica si la fecha es válida, si no, asigna `null`
-        vigencia: parsedVigencia.isValid() ? parsedVigencia.toDate() : null, // Verifica si la vigencia es válida, si no, asigna `null`
-        monto: parseFloat(
-          row.monto.replace(/[^0-9,.-]+/g, "").replace(",", ".")
-        ), // Limpia y convierte el monto a número
+        total: rows.length,
+        processed: processedCount,
+        valid: validCount,
+        invalid: invalidCount,
       };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de fees CABA completado", {
+      totalRegistros: result.total,
+      registrosProcesados: result.processed,
+      registrosValidos: result.valid,
+      registrosInvalidos: result.invalid,
     });
 
-    await saveFeesValuesAfterLastVigenciaCaba(processedData);
-  } catch (err) {
-    logWithDetails.error(`Error scraping fees data: ${err}`);
+    return result;
+  } catch (error) {
+    logWithDetails.error(
+      `Error crítico en scrapeFeesDataCABA: ${error.stack}`,
+      {
+        error: error.message,
+        stack: error.stack,
+      }
+    );
+    throw error;
+  } finally {
+    if (browser) {
+      await browserPool.release(browser);
+    }
   }
 };
 
 const scrapeFeesDataBsAs = async () => {
   let browser;
   try {
-    // Inicia el navegador
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-      ],
-    });
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
+
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
+
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
+
+    logWithDetails.info("Navegador adquirido exitosamente");
+
     const page = await browser.newPage();
+    logWithDetails.info("Nueva página creada");
 
-    // Navega a la URL especificada
-    await page.goto(process.env.FEES_PAGE_4, {
-      waitUntil: "domcontentloaded",
-    });
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de fees Buenos Aires");
 
-    // Espera a que la tabla esté presente en la página
-    await page.waitForSelector("table");
-
-    // Extrae los datos de la tabla
-    const tableData = await page.evaluate(() => {
-      const rows = Array.from(document.querySelectorAll("table tr"));
-      return rows.map((row) => {
-        const cells = Array.from(row.querySelectorAll("th, td"));
-        return cells.map((cell) => cell.innerText.trim());
+      await page.goto(process.env.FEES_PAGE_4, {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
       });
-    });
 
-    // Filtrar las filas vacías o incompletas y eliminar celdas vacías
-    const filteredData = tableData
-      .map((row) => row.filter((cell) => cell !== ""))
-      .filter((row) => row.length > 0);
-    // Unificar los datos y agregar la propiedad type
-    const unifiedData = [];
-    filteredData.slice(1).forEach((row) => {
-      if (row[0]) {
-        const parsedFirst = parseDateAndMonto(row[0], filteredData[0][0]);
-        if (parsedFirst) unifiedData.push(parsedFirst);
-      }
-      if (row[1]) {
-        const parsedSecond = parseDateAndMonto(row[1], filteredData[0][1]);
-        if (parsedSecond) unifiedData.push(parsedSecond);
-      }
-    });
+      // Esperar a que la tabla esté presente
+      await page.waitForSelector("table", {
+        timeout: defaultPuppeteerConfig.timeout,
+      });
 
-    // Group the data by 'type' and add additional properties
-    const groupedData = unifiedData.map((item) => {
-      let newType = "";
-      if (item.type.includes("14.967") || item.type.includes("14967")) {
-        newType = "JUS Ley Nº 14.967";
-      } else if (
-        item.type.includes("8904/77") ||
-        item.type.includes("8904-77") ||
-        item.type.includes("8904")
-      ) {
-        newType = "JUS Dec-Ley Nº 8904/77";
+      // Extraer datos de la tabla
+      const tableData = await page.evaluate(() => {
+        try {
+          const rows = Array.from(document.querySelectorAll("table tr"));
+          return rows.map((row) => {
+            const cells = Array.from(row.querySelectorAll("th, td"));
+            return cells.map((cell) => cell.innerText.trim());
+          });
+        } catch (error) {
+          console.error("Error extrayendo datos de tabla:", error);
+          return [];
+        }
+      });
+
+      logWithDetails.info(
+        `Se encontraron ${tableData.length} filas en la tabla`
+      );
+
+      // Filtrar y procesar datos
+      const filteredData = tableData
+        .map((row) => row.filter((cell) => cell !== ""))
+        .filter((row) => row.length > 0);
+
+      // Unificar datos
+      const unifiedData = [];
+      let processedCount = 0;
+      let validCount = 0;
+      let invalidCount = 0;
+
+      // Procesar en lotes
+      const BATCH_SIZE = 10;
+      for (let i = 1; i < filteredData.length; i++) {
+        const row = filteredData[i];
+
+        try {
+          if (row[0]) {
+            const parsedFirst = parseDateAndMonto(row[0], filteredData[0][0]);
+            if (parsedFirst) {
+              unifiedData.push(parsedFirst);
+              validCount++;
+            } else {
+              invalidCount++;
+            }
+          }
+
+          if (row[1]) {
+            const parsedSecond = parseDateAndMonto(row[1], filteredData[0][1]);
+            if (parsedSecond) {
+              unifiedData.push(parsedSecond);
+              validCount++;
+            } else {
+              invalidCount++;
+            }
+          }
+
+          processedCount += 2; // Contamos ambas columnas
+
+          // Limpiar memoria cada cierto número de registros
+          if (processedCount % BATCH_SIZE === 0) {
+            cleanupMemory();
+            logWithDetails.info(
+              `Progreso: ${processedCount} registros procesados`
+            );
+          }
+        } catch (error) {
+          invalidCount++;
+          logWithDetails.error(`Error procesando fila ${i}:`, {
+            error: error.message,
+            data: row,
+          });
+        }
+      }
+
+      // Procesar y agrupar datos
+      const groupedData = unifiedData.map((item) => {
+        let newType = "";
+        if (item.type.includes("14.967") || item.type.includes("14967")) {
+          newType = "JUS Ley Nº 14.967";
+        } else if (
+          item.type.includes("8904/77") ||
+          item.type.includes("8904-77") ||
+          item.type.includes("8904")
+        ) {
+          newType = "JUS Dec-Ley Nº 8904/77";
+        }
+
+        return {
+          ...item,
+          type: newType,
+          organization: "Poder Judicial de la provincia de Buenos Aires",
+          periodo: formatPeriod(item.vigencia),
+        };
+      });
+
+      if (groupedData.length > 0) {
+        await saveNewFeesBA(groupedData);
+        logWithDetails.info(
+          `Guardados ${groupedData.length} registros de fees BA`
+        );
       }
 
       return {
-        ...item,
-        type: newType,
-        organization: "Poder Judicial de la provincia de Buenos Aires",
-        periodo: formatPeriod(item.vigencia),
+        total: processedCount,
+        valid: validCount,
+        invalid: invalidCount,
+        saved: groupedData.length,
       };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de fees BA completado", {
+      totalRegistros: result.total,
+      registrosValidos: result.valid,
+      registrosInvalidos: result.invalid,
+      registrosGuardados: result.saved,
     });
 
-    if (groupedData.length > 0) {
-      await saveNewFeesBA(groupedData);
-    }
-    return groupedData;
+    return result;
   } catch (error) {
-    logWithDetails.error("Error al realizar el scraping Fees BA:", error);
+    logWithDetails.error(
+      `Error crítico en scrapeFeesDataBsAs: ${error.stack}`,
+      {
+        error: error.message,
+        stack: error.stack,
+      }
+    );
+    throw error;
   } finally {
-    // Cierra el navegador
     if (browser) {
-      await browser.close();
+      await browserPool.release(browser);
     }
   }
 };
 
 const scrapeLegalPage = async (urlPage, include, alternatives, type) => {
   let browser;
-  // Inicia el navegador
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-      ],
-    });
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
+
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
+
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
+
+    logWithDetails.info("Navegador adquirido exitosamente");
+
     const page = await browser.newPage();
-    await page.goto(urlPage, {
-      waitUntil: "domcontentloaded",
-    });
+    logWithDetails.info("Nueva página creada");
 
-    const resultados = await page.evaluate(
-      (include, alternatives) => {
-        const filas = Array.from(document.querySelectorAll("table tbody tr"));
-        const resultados = [];
+    const scrapeOperation = async () => {
+      logWithDetails.info(`Iniciando scraping legal de ${type}`);
 
-        filas.forEach((fila) => {
-          const celdas = fila.querySelectorAll("td");
-          if (celdas.length === 3) {
-            let descripcion = celdas[2].innerText.trim().replace(/\n/g, " - ");
-            let fecha = celdas[1].innerText.trim();
-            const linkElement = celdas[0].querySelector("a");
-            let link = linkElement ? linkElement.getAttribute("href") : null;
-            const norma = linkElement ? linkElement.innerText.trim() : null;
+      await page.goto(urlPage, {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
+      });
 
-            // Asegurarse de que el link sea absoluto y eliminar jsessionid
-            if (link) {
-              link = new URL(link, window.location.origin).href;
-              link = link.replace(/;jsessionid=[^?]+/i, "");
-            }
-
-            const contienePrincipal = descripcion.includes(include);
-            const contieneAlternativo = alternatives.some((keyword) =>
-              descripcion.includes(keyword)
+      // Extraer datos de la tabla
+      const resultados = await page.evaluate(
+        (include, alternatives) => {
+          try {
+            const filas = Array.from(
+              document.querySelectorAll("table tbody tr")
             );
+            const resultados = [];
 
-            if (contienePrincipal && contieneAlternativo) {
-              resultados.push({
-                fecha,
-                descripcion,
-                link,
-                norma,
+            filas.forEach((fila) => {
+              try {
+                const celdas = fila.querySelectorAll("td");
+                if (celdas.length === 3) {
+                  const [normaCell, fechaCell, descripcionCell] = [...celdas];
+                  const linkElement = normaCell.querySelector("a");
+
+                  let descripcion = descripcionCell.innerText
+                    .trim()
+                    .replace(/\n/g, " - ");
+                  let fecha = fechaCell.innerText.trim();
+                  let link = linkElement?.getAttribute("href") || null;
+                  const norma = linkElement?.innerText.trim() || null;
+
+                  if (link) {
+                    link = new URL(link, window.location.origin).href;
+                    link = link.replace(/;jsessionid=[^?]+/i, "");
+                  }
+
+                  const contienePrincipal = descripcion.includes(include);
+                  const contieneAlternativo = alternatives.some((keyword) =>
+                    descripcion.includes(keyword)
+                  );
+
+                  if (contienePrincipal && contieneAlternativo) {
+                    resultados.push({
+                      fecha,
+                      descripcion,
+                      link,
+                      norma,
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error("Error procesando fila:", error);
+              }
+            });
+            return resultados;
+          } catch (error) {
+            console.error("Error en evaluación:", error);
+            return [];
+          }
+        },
+        include,
+        alternatives
+      );
+
+      logWithDetails.info(
+        `Se encontraron ${resultados.length} resultados para procesar`
+      );
+
+      // Procesar resultados en lotes
+      const BATCH_SIZE = 10;
+      let processedCount = 0;
+      let validCount = 0;
+      let invalidCount = 0;
+      const processedResults = [];
+
+      for (let i = 0; i < resultados.length; i += BATCH_SIZE) {
+        const batch = resultados.slice(i, i + BATCH_SIZE);
+
+        batch.forEach((resultado) => {
+          try {
+            const fechaISO = moment(resultado.fecha, "DD-MMM-YYYY", "es");
+
+            if (fechaISO.isValid()) {
+              processedResults.push({
+                ...resultado,
+                fecha: fechaISO.format("YYYY-MM-DD"),
+                type,
+              });
+              validCount++;
+            } else {
+              invalidCount++;
+              logWithDetails.warn(`Fecha inválida en resultado:`, {
+                fecha: resultado.fecha,
+                norma: resultado.norma,
               });
             }
+            processedCount++;
+          } catch (error) {
+            invalidCount++;
+            logWithDetails.error(`Error procesando resultado:`, {
+              error: error.message,
+              data: resultado,
+            });
           }
         });
-        return resultados;
-      },
-      include,
-      alternatives
-    );
 
-    // Convertir las fechas al formato ISO utilizando moment.js
-    const resultadosConFechaISO = resultados.map((resultado) => {
-      const fechaISO = moment(resultado.fecha, "DD-MMM-YYYY", "es").format(
-        "YYYY-MM-DD"
-      );
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+
+        logWithDetails.info(
+          `Progreso: ${processedCount}/${resultados.length} resultados procesados`
+        );
+      }
+
       return {
-        ...resultado,
-        fecha: fechaISO,
-        type,
+        data: processedResults,
+        total: resultados.length,
+        processed: processedCount,
+        valid: validCount,
+        invalid: invalidCount,
       };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info(`Scraping legal de ${type} completado`, {
+      totalResultados: result.total,
+      resultadosProcesados: result.processed,
+      resultadosValidos: result.valid,
+      resultadosInvalidos: result.invalid,
     });
-    return resultadosConFechaISO;
+
+    return result.data;
   } catch (error) {
-    logWithDetails.error("Error al realizar el scraping legal:", error);
-    throw Error(error);
+    logWithDetails.error(`Error crítico en scrapeLegalPage: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+      type,
+      url: urlPage,
+    });
+    throw error;
   } finally {
     if (browser) {
-      await browser.close();
+      await browserPool.release(browser);
     }
   }
 };
@@ -1153,118 +2191,188 @@ const scrapeLegalPage = async (urlPage, include, alternatives, type) => {
 const scrapePrevisionalLink = async (link) => {
   let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-      ],
-    });
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
+
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
+
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
+
+    logWithDetails.info("Navegador adquirido exitosamente");
+
     const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 }); // Ampliar la visión del navegador
-    await page.goto(link, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("a");
-    await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll("a"));
-      const targetLink = links.find(
-        (link) => link.textContent.trim() === "Texto completo de la norma"
-      );
-      if (targetLink) {
-        targetLink.click();
-      }
-    });
-    await page.waitForNavigation({ waitUntil: "domcontentloaded" });
-    await page.waitForSelector("body"); // Asegurarse de que el contenido del cuerpo esté cargado
+    logWithDetails.info("Nueva página creada");
+    await page.setViewport({ width: 1280, height: 800 });
 
-    // Obtener el contenido HTML completo
-    const html = await page.content();
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping previsional");
 
-    // Usar una expresión regular para encontrar los textos que comienzan con 'ARTÍCULO'
-    const articles = [];
-    const regex = /ARTÍCULO\s+\d+.*?(?=<br\s*\/?>|$)/gs;
-    let match;
-    while ((match = regex.exec(html)) !== null) {
-      // Limpiar el contenido HTML eliminando etiquetas y saltos de línea
-      const cleanedText = match[0]
-        .replace(/<br\s*\/?>/gi, " ") // Reemplazar <br> por espacio
-        .replace(/\n/g, " ") // Reemplazar saltos de línea por espacio
-        .replace(/<[^>]*>/g, "") // Eliminar cualquier otra etiqueta HTML
-        .trim();
-      articles.push(cleanedText);
-    }
-
-    // Verificar si se encuentran elementos con el contenido deseado
-    if (articles.length === 0) {
-      logWithDetails.error(
-        "No se encontraron elementos que comiencen con 'ARTÍCULO'. Verificar la estructura del DOM."
-      );
-    }
-    logWithDetails.info(articles);
-    // Extraer los datos específicos de cada artículo
-    const extractedData = articles
-      .map((article, index) => {
-        const tipoMatch = article.match(
-          /haber mínimo|haber máximo|prestación básica universal|pensión universal para el adulto mayor/i
-        );
-        if (!tipoMatch) return null;
-
-        let tipo = tipoMatch[0]
-          .split(" ")
-          .map(
-            (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-          )
-          .join(" ");
-        const fechaMatch = article.match(
-          /(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) de \d{4}/i
-        );
-        const importeMatch = article.match(/\$\s?\d{1,3}(?:\.\d{3})*,\d{2}/);
-
-        return {
-          tipo: tipo,
-          fecha: fechaMatch ? fechaMatch[0] : "No especificada",
-          importe: importeMatch ? importeMatch[0] : "No especificado",
-          order: index + 1,
-        };
-      })
-      .filter((data) => data !== null);
-
-    // Buscar párrafos que contengan la palabra 'movilidad' y un porcentaje
-    const mobilityData = await page.evaluate(() => {
-      const paragraphs = Array.from(document.querySelectorAll("p, div, span"));
-      const mobilityParagraph = paragraphs.find((p) => {
-        const text = p.textContent;
-        return text.includes("movilidad") && /\d+[.,]\d+\s?%/.test(text);
+      await page.goto(link, {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
       });
-      if (mobilityParagraph) {
-        let percentageMatch =
-          mobilityParagraph.textContent.match(/\d+[.,]\d+\s?%/);
-        let result = percentageMatch ? percentageMatch[0] : null;
-        return {
-          tipo: "Aumento General",
-          importe: result,
-          order: 0,
-        };
+
+      // Esperar y hacer clic en el enlace del texto completo
+      await page.waitForSelector("a");
+      await page.evaluate(() => {
+        const links = Array.from(document.querySelectorAll("a"));
+        const targetLink = links.find(
+          (link) => link.textContent.trim() === "Texto completo de la norma"
+        );
+        if (targetLink) {
+          targetLink.click();
+        }
+      });
+
+      await page.waitForNavigation({
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
+      });
+      await page.waitForSelector("body");
+
+      // Obtener y procesar artículos
+      const html = await page.content();
+      const articles = [];
+      const regex = /ARTÍCULO\s+\d+.*?(?=<br\s*\/?>|$)/gs;
+      let match;
+
+      while ((match = regex.exec(html)) !== null) {
+        const cleanedText = match[0]
+          .replace(/<br\s*\/?>/gi, " ")
+          .replace(/\n/g, " ")
+          .replace(/<[^>]*>/g, "")
+          .trim();
+        articles.push(cleanedText);
       }
-      return null;
+
+      if (articles.length === 0) {
+        logWithDetails.warn("No se encontraron artículos en el documento");
+        return { data: [], articlesFound: 0 };
+      }
+
+      logWithDetails.info(
+        `Se encontraron ${articles.length} artículos para procesar`
+      );
+
+      // Procesar artículos en lotes
+      const BATCH_SIZE = 5;
+      let processedCount = 0;
+      let validCount = 0;
+      const extractedData = [];
+
+      for (let i = 0; i < articles.length; i += BATCH_SIZE) {
+        const batch = articles.slice(i, i + BATCH_SIZE);
+
+        batch.forEach((article, idx) => {
+          try {
+            const tipoMatch = article.match(
+              /haber mínimo|haber máximo|prestación básica universal|pensión universal para el adulto mayor/i
+            );
+
+            if (tipoMatch) {
+              const tipo = tipoMatch[0]
+                .split(" ")
+                .map(
+                  (word) =>
+                    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                )
+                .join(" ");
+
+              const fechaMatch = article.match(
+                /(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) de \d{4}/i
+              );
+              const importeMatch = article.match(
+                /\$\s?\d{1,3}(?:\.\d{3})*,\d{2}/
+              );
+
+              extractedData.push({
+                tipo,
+                fecha: fechaMatch ? fechaMatch[0] : "No especificada",
+                importe: importeMatch ? importeMatch[0] : "No especificado",
+                order: i + idx + 1,
+              });
+              validCount++;
+            }
+            processedCount++;
+          } catch (error) {
+            logWithDetails.error(`Error procesando artículo:`, {
+              error: error.message,
+              article,
+            });
+          }
+        });
+
+        // Limpiar memoria después de cada lote
+        cleanupMemory();
+      }
+
+      // Buscar datos de movilidad
+      const mobilityData = await page.evaluate(() => {
+        const paragraphs = Array.from(
+          document.querySelectorAll("p, div, span")
+        );
+        const mobilityParagraph = paragraphs.find((p) => {
+          const text = p.textContent;
+          return text.includes("movilidad") && /\d+[.,]\d+\s?%/.test(text);
+        });
+
+        if (mobilityParagraph) {
+          const percentageMatch =
+            mobilityParagraph.textContent.match(/\d+[.,]\d+\s?%/);
+          return percentageMatch
+            ? {
+                tipo: "Aumento General",
+                importe: percentageMatch[0],
+                order: 0,
+              }
+            : null;
+        }
+        return null;
+      });
+
+      if (mobilityData && mobilityData.importe && extractedData.length > 0) {
+        mobilityData.fecha = extractedData[0].fecha;
+        extractedData.push(mobilityData);
+      }
+
+      const sortedData = extractedData.sort((a, b) => a.order - b.order);
+
+      return {
+        data: sortedData,
+        articlesFound: articles.length,
+        processed: processedCount,
+        valid: validCount,
+      };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping previsional completado", {
+      articulosEncontrados: result.articlesFound,
+      articulosProcesados: result.processed,
+      articulosValidos: result.valid,
+      datosExtraidos: result.data.length,
     });
 
-    if (mobilityData && mobilityData.importe) {
-      mobilityData.fecha = extractedData[0].fecha;
-      extractedData.push(mobilityData);
-    }
-    const data = extractedData.sort((a, b) => a.order - b.order);
-    return extractedData;
+    return result.data;
   } catch (error) {
-    logWithDetails.error(`Error al obtener datos previsionales: ${error}`);
-    throw new Error(error);
+    logWithDetails.error(
+      `Error crítico en scrapePrevisionalLink: ${error.stack}`,
+      {
+        error: error.message,
+        stack: error.stack,
+        link,
+      }
+    );
+    throw error;
   } finally {
     if (browser) {
-      await browser.close();
+      await browserPool.release(browser);
     }
   }
 };
@@ -1272,251 +2380,213 @@ const scrapePrevisionalLink = async (link) => {
 const scrapeDomesticos = async (urlPage, fechaInicio) => {
   let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--no-first-run",
-        "--no-zygote",
-        "--single-process",
-        "--disable-gpu",
-      ],
-    });
+    logWithDetails.info("Esperando inicialización del pool...");
+    await waitForInitialization();
+    logWithDetails.info("Pool inicializado correctamente");
+
+    logWithDetails.info("Intentando adquirir navegador del pool...");
+    browser = await browserPool.acquire();
+
+    if (!browser || !browser.isConnected()) {
+      throw new Error("Navegador inválido o desconectado");
+    }
+
+    logWithDetails.info("Navegador adquirido exitosamente");
+
     const page = await browser.newPage();
-    await page.goto(urlPage, {
-      waitUntil: "domcontentloaded",
-    });
+    logWithDetails.info("Nueva página creada");
 
-    // Ajustar la fecha de inicio al inicio del día (hora cero)
-    const fechaInicioMoment = moment(fechaInicio).startOf("day");
+    const scrapeOperation = async () => {
+      logWithDetails.info("Iniciando scraping de servicio doméstico");
 
-    // Extraer la información de cada tabla
-    const data = await page.evaluate(() => {
-      const resultados = [];
-      const warnings = [];
-      const tables = document.querySelectorAll("table");
+      await page.goto(urlPage, {
+        waitUntil: "networkidle2",
+        timeout: defaultPuppeteerConfig.timeout,
+      });
 
-      tables.forEach((table) => {
-        let fechaElement = table.previousElementSibling;
-        while (fechaElement && !fechaElement.matches("h3, h4, h5")) {
-          fechaElement = fechaElement.previousElementSibling;
-        }
-        let fecha = fechaElement
-          ? fechaElement.innerText.trim()
-          : "Fecha no encontrada";
-        if (fecha === "Fecha no encontrada") {
-          warnings.push(
-            `Advertencia: No se encontró la fecha para una de las tablas. Nodo HTML: ${table.outerHTML}`
-          );
-        }
+      const fechaInicioMoment = moment(fechaInicio).startOf("day");
 
-        // Extraer solo la fecha (día, mes y año) del texto
-        const fechaMatch = fecha.match(
-          /(?:A PARTIR DEL|a partir del)\s+(\d{1,2})[°º]?\s+de\s+([A-ZÁÉÍÓÚa-záéíóú]+)\s+de\s+(\d{4})/i
-        );
+      // Extraer información de las tablas
+      const data = await page.evaluate((monthNames) => {
+        const resultados = [];
+        const warnings = [];
+        const tables = document.querySelectorAll("table");
 
-        if (fechaMatch) {
-          const day = fechaMatch[1].padStart(2, "0");
-          const monthNames = {
-            ENERO: "01",
-            FEBRERO: "02",
-            MARZO: "03",
-            ABRIL: "04",
-            MAYO: "05",
-            JUNIO: "06",
-            JULIO: "07",
-            AGOSTO: "08",
-            SEPTIEMBRE: "09",
-            SETIEMBRE: "09",
-            OCTUBRE: "10",
-            NOVIEMBRE: "11",
-            DICIEMBRE: "12",
-            enero: "01",
-            febrero: "02",
-            marzo: "03",
-            abril: "04",
-            mayo: "05",
-            junio: "06",
-            julio: "07",
-            agosto: "08",
-            septiembre: "09",
-            setiembre: "09",
-            octubre: "10",
-            noviembre: "11",
-            diciembre: "12",
-          };
+        tables.forEach((table, tableIndex) => {
+          try {
+            // Obtener fecha de la tabla
+            let fechaElement = table.previousElementSibling;
+            while (fechaElement && !fechaElement.matches("h3, h4, h5")) {
+              fechaElement = fechaElement.previousElementSibling;
+            }
+            let fecha = fechaElement?.innerText.trim() || "Fecha no encontrada";
 
-          const month =
-            monthNames[fechaMatch[2].toUpperCase()] ||
-            monthNames[fechaMatch[2].toLowerCase()];
-          const year = fechaMatch[3];
+            if (fecha === "Fecha no encontrada") {
+              warnings.push(
+                `Advertencia: No se encontró la fecha para la tabla ${
+                  tableIndex + 1
+                }`
+              );
+              return;
+            }
 
-          if (day && month && year) {
-            const dateObj = new Date(
-              Date.UTC(
-                parseInt(year),
-                parseInt(month) - 1, // Los meses en JavaScript son 0-based
-                parseInt(day),
-                12, // hora
-                0, // minutos
-                0 // segundos
-              )
+            // Procesar fecha
+            const fechaMatch = fecha.match(
+              /(?:A PARTIR DEL|a partir del)\s+(\d{1,2})[°º]?\s+de\s+([A-ZÁÉÍÓÚa-záéíóú]+)\s+de\s+(\d{4})/i
             );
 
-            if (!isNaN(dateObj)) {
-              fecha = dateObj.toISOString();
-            } else {
-              warnings.push(`Advertencia: Fecha inválida extraída: ${fecha}`);
-            }
-          }
-        }
+            if (fechaMatch) {
+              const [, day, monthStr, year] = fechaMatch;
+              const month =
+                monthNames[monthStr.toUpperCase()] ||
+                monthNames[monthStr.toLowerCase()];
 
-        const rows = table.querySelectorAll("tbody tr");
-        rows.forEach((row) => {
-          const cells = row.querySelectorAll("td");
-          if (cells.length >= 2) {
-            let categoria = cells[0].innerText.trim();
-
-            // Filtrar la categoría
-            const categoriaMatch = categoria.match(
-              /SUPERVISOR|PERSONAL PARA TAREAS ESPECIFICAS|PERSONAL PARA TAREAS ESPECÍFICAS|CASEROS|ASISTENCIA Y CUIDADO DE PERSONAS|PERSONAL PARA TAREAS GENERALES/i
-            );
-            categoria = categoriaMatch ? categoriaMatch[0] : categoria;
-
-            if (cells.length === 3) {
-              try {
-                // Extraer datos para CON RETIRO
-                const conRetiroText = cells[1].innerText;
-                const valorHoraConRetiroMatch =
-                  conRetiroText.match(/Hora:? \$([\d.,]+)/);
-                const valorMensualConRetiroMatch = conRetiroText.match(
-                  /Mensual:? \$([\d.,]+)/
+              if (day && month && year) {
+                const dateObj = new Date(
+                  Date.UTC(
+                    parseInt(year),
+                    parseInt(month) - 1,
+                    parseInt(day),
+                    12,
+                    0,
+                    0
+                  )
                 );
 
-                if (valorHoraConRetiroMatch && valorMensualConRetiroMatch) {
-                  const valorHoraConRetiro = parseFloat(
-                    valorHoraConRetiroMatch[1].replace(/[.,]/g, (m) =>
-                      m === "." ? "" : "."
-                    )
+                if (!isNaN(dateObj)) {
+                  fecha = dateObj.toISOString();
+                } else {
+                  warnings.push(
+                    `Advertencia: Fecha inválida en tabla ${
+                      tableIndex + 1
+                    }: ${fecha}`
                   );
-                  const valorMensualConRetiro = parseFloat(
-                    valorMensualConRetiroMatch[1].replace(/[.,]/g, (m) =>
-                      m === "." ? "" : "."
-                    )
-                  );
-
-                  resultados.push({
-                    fecha,
-                    categoria,
-                    tipo: "CON RETIRO",
-                    valorHora: valorHoraConRetiro,
-                    valorMensual: valorMensualConRetiro,
-                  });
+                  return;
                 }
-
-                // Extraer datos para SIN RETIRO
-                const sinRetiroText = cells[2].innerText;
-                const valorHoraSinRetiroMatch =
-                  sinRetiroText.match(/Hora:? \$([\d.,]+)/);
-                const valorMensualSinRetiroMatch = sinRetiroText.match(
-                  /Mensual:? \$([\d.,]+)/
-                );
-
-                if (valorHoraSinRetiroMatch && valorMensualSinRetiroMatch) {
-                  const valorHoraSinRetiro = parseFloat(
-                    valorHoraSinRetiroMatch[1].replace(/[.,]/g, (m) =>
-                      m === "." ? "" : "."
-                    )
-                  );
-                  const valorMensualSinRetiro = parseFloat(
-                    valorMensualSinRetiroMatch[1].replace(/[.,]/g, (m) =>
-                      m === "." ? "" : "."
-                    )
-                  );
-
-                  resultados.push({
-                    fecha,
-                    categoria,
-                    tipo: "SIN RETIRO",
-                    valorHora: valorHoraSinRetiro,
-                    valorMensual: valorMensualSinRetiro,
-                  });
-                }
-              } catch (error) {
-                logWithDetails.error(
-                  "Error extrayendo datos para la categoría:",
-                  categoria,
-                  error
-                );
-              }
-            } else if (cells.length === 2) {
-              try {
-                // Extraer datos para CASEROS (sin distinción entre CON RETIRO y SIN RETIRO)
-                const sinRetiroText = cells[1].innerText;
-                const valorHoraSinRetiroMatch =
-                  sinRetiroText.match(/Hora:? \$([\d.,]+)/);
-                const valorMensualSinRetiroMatch = sinRetiroText.match(
-                  /Mensual:? \$([\d.,]+)/
-                );
-
-                if (valorHoraSinRetiroMatch && valorMensualSinRetiroMatch) {
-                  const valorHoraSinRetiro = parseFloat(
-                    valorHoraSinRetiroMatch[1].replace(/[.,]/g, (m) =>
-                      m === "." ? "" : "."
-                    )
-                  );
-                  const valorMensualSinRetiro = parseFloat(
-                    valorMensualSinRetiroMatch[1].replace(/[.,]/g, (m) =>
-                      m === "." ? "" : "."
-                    )
-                  );
-
-                  resultados.push({
-                    fecha,
-                    categoria,
-                    tipo: "SIN RETIRO",
-                    valorHora: valorHoraSinRetiro,
-                    valorMensual: valorMensualSinRetiro,
-                  });
-                }
-              } catch (error) {
-                logWithDetails.error(
-                  "Error extrayendo datos para la categoría CASEROS:",
-                  categoria,
-                  error
-                );
               }
             }
+
+            // Procesar filas de la tabla
+            const rows = table.querySelectorAll("tbody tr");
+            rows.forEach((row) => {
+              const cells = row.querySelectorAll("td");
+              if (cells.length >= 2) {
+                try {
+                  let categoria = cells[0].innerText.trim();
+                  const categoriaMatch = categoria.match(
+                    /SUPERVISOR|PERSONAL PARA TAREAS ESPECIFICAS|PERSONAL PARA TAREAS ESPECÍFICAS|CASEROS|ASISTENCIA Y CUIDADO DE PERSONAS|PERSONAL PARA TAREAS GENERALES/i
+                  );
+                  categoria = categoriaMatch ? categoriaMatch[0] : categoria;
+
+                  const procesarValores = (text) => {
+                    const valorHoraMatch = text.match(/Hora:? \$([\d.,]+)/);
+                    const valorMensualMatch = text.match(
+                      /Mensual:? \$([\d.,]+)/
+                    );
+
+                    if (valorHoraMatch && valorMensualMatch) {
+                      return {
+                        valorHora: parseFloat(
+                          valorHoraMatch[1].replace(/[.,]/g, (m) =>
+                            m === "." ? "" : "."
+                          )
+                        ),
+                        valorMensual: parseFloat(
+                          valorMensualMatch[1].replace(/[.,]/g, (m) =>
+                            m === "." ? "" : "."
+                          )
+                        ),
+                      };
+                    }
+                    return null;
+                  };
+
+                  if (cells.length === 3) {
+                    const conRetiroValues = procesarValores(cells[1].innerText);
+                    if (conRetiroValues) {
+                      resultados.push({
+                        fecha,
+                        categoria,
+                        tipo: "CON RETIRO",
+                        ...conRetiroValues,
+                      });
+                    }
+
+                    const sinRetiroValues = procesarValores(cells[2].innerText);
+                    if (sinRetiroValues) {
+                      resultados.push({
+                        fecha,
+                        categoria,
+                        tipo: "SIN RETIRO",
+                        ...sinRetiroValues,
+                      });
+                    }
+                  } else if (cells.length === 2) {
+                    const valores = procesarValores(cells[1].innerText);
+                    if (valores) {
+                      resultados.push({
+                        fecha,
+                        categoria,
+                        tipo: "SIN RETIRO",
+                        ...valores,
+                      });
+                    }
+                  }
+                } catch (error) {
+                  console.error(
+                    `Error procesando fila en tabla ${tableIndex + 1}:`,
+                    error
+                  );
+                }
+              }
+            });
+          } catch (error) {
+            console.error(`Error procesando tabla ${tableIndex + 1}:`, error);
           }
         });
+
+        return { resultados, warnings };
+      }, monthNames);
+
+      // Procesar advertencias y resultados
+      data.warnings.forEach((warning) => {
+        logWithDetails.warn(warning);
       });
-      return { resultados, warnings };
+
+      const filteredResults = fechaInicio
+        ? data.resultados.filter(({ fecha }) =>
+            moment(fecha).isAfter(fechaInicioMoment, "day")
+          )
+        : data.resultados;
+
+      return {
+        data: filteredResults,
+        total: data.resultados.length,
+        filtered: filteredResults.length,
+        warnings: data.warnings.length,
+      };
+    };
+
+    // Ejecutar operación con reintentos
+    const result = await retryOperation(scrapeOperation);
+
+    logWithDetails.info("Scraping de servicio doméstico completado", {
+      totalRegistros: result.total,
+      registrosFiltrados: result.filtered,
+      advertencias: result.warnings,
     });
 
-    const { resultados, warnings } = data;
-
-    // Mostrar advertencias de fechas no encontradas
-    warnings.forEach((warning) => {
-      logWithDetails.error(warning);
-    });
-
-    // Filtrar los resultados para devolver solo las fechas posteriores a la fecha proporcionada
-    if (fechaInicio) {
-      const resultadosFiltrados = resultados.filter(({ fecha }) => {
-        return moment(fecha).isAfter(fechaInicioMoment, "day");
-      });
-      return resultadosFiltrados;
-    } else {
-      return resultados;
-    }
+    return result.data;
   } catch (error) {
-    logWithDetails.error(`Error de scraping page servicio doméstico: ${error}`);
-    throw Error(error);
+    logWithDetails.error(`Error crítico en scrapeDomesticos: ${error.stack}`, {
+      error: error.message,
+      stack: error.stack,
+      url: urlPage,
+    });
+    throw error;
   } finally {
     if (browser) {
-      await browser.close();
+      await browserPool.release(browser);
     }
   }
 };

@@ -51,7 +51,11 @@ const {
   uploadCarouselMedia,
   checkTokenExpiration,
 } = require("../controllers/igControllers");
-const { uploadImage, deleteImage } = require("./cloudinaryService");
+const {
+  uploadImage,
+  deleteImage,
+  getLinksFromFolders,
+} = require("./cloudinaryService");
 const {
   saveLegalLinks,
   findUnscrapedLegal,
@@ -97,88 +101,221 @@ const cronSchedules = {
 
   efemerides: [
     {
-      cron: "30 10 15 1 *",
-      nombre: "Día del Comisionado de Derechos Humanos",
-      hashtags: "#DerechosHumanos #Justicia #ONU",
-      imagenes: ["DIA_DDHH_01", "DIA_DDHH_02"],
+      cron: "30 10 0 1 1 *",
+      nombre: "Año Nuevo",
+      descripcion:
+        "🎉 Celebramos el inicio de un nuevo año lleno de esperanza y oportunidades. 🌟",
+      hashtags: "#AñoNuevo #Felicidades #Esperanza",
+      key: "ano_nuevo",
     },
     {
-      cron: "30 10 24 1 *",
-      nombre: "Día Internacional de la Educación",
-      hashtags: "#EducaciónParaTodos #DerechosHumanos",
-      imagenes: ["DIA_EDUCACION_01", "DIA_EDUCACION_02"],
+      cron: "30 10 25 5 *",
+      nombre: "Día de la Revolución de Mayo",
+      descripcion:
+        "🇦🇷 Conmemoramos el inicio del camino hacia la independencia en 1810. ✊",
+      hashtags: "#RevoluciónDeMayo #Argentina",
+      key: "revolucion_mayo",
     },
     {
-      cron: "30 10 20 2 *",
-      nombre: "Día Mundial de la Justicia Social",
-      hashtags: "#JusticiaSocial #Igualdad",
-      imagenes: ["DIA_JUSTICIA_01", "DIA_JUSTICIA_02"],
+      cron: "30 10 9 7 *",
+      nombre: "Día de la Independencia",
+      descripcion:
+        "🎆 Celebramos nuestra libertad y la declaración de independencia en 1816. 🕊️",
+      hashtags: "#IndependenciaArgentina #9DeJulio",
+      key: "independencia",
     },
     {
-      cron: "30 10 8 3 *",
-      nombre: "Día Internacional de la Mujer",
-      hashtags: "#DiaDeLaMujer #IgualdadDeGénero",
-      imagenes: ["DIA_MUJER_01", "DIA_MUJER_02"],
+      cron: "30 10 20 11 *",
+      nombre: "Día de la Soberanía Nacional",
+      descripcion:
+        "⚓ Homenajeamos a los héroes que defendieron nuestra soberanía en 1845. 🌊",
+      hashtags: "#SoberaníaNacional #Argentina",
+      key: "soberania",
     },
     {
-      cron: "30 10 10 12 *",
-      nombre: "Día de los Derechos Humanos",
-      hashtags: "#DerechosHumanos #Igualdad #Justicia",
-      imagenes: ["DIA_DDHH_01", "DIA_DDHH_02"],
+      cron: "30 10 2 4 *",
+      nombre: "Día del Veterano y de los Caídos en la Guerra de Malvinas",
+      descripcion:
+        "🎖️ Honramos a quienes dieron todo por nuestra patria en 1982. 🇦🇷",
+      hashtags: "#MalvinasArgentinas #2DeAbril",
+      key: "malvinas",
     },
     {
-      cron: "30 10 1 2 *",
-      nombre: "Día del Abogado Laboralista",
-      hashtags: "#AbogadoLaboralista #DerechoLaboral",
-      imagenes: ["DIA_ABOGADO_LAB_01", "DIA_ABOGADO_LAB_02"],
+      cron: "30 10 20 6 *",
+      nombre: "Día de la Bandera",
+      descripcion:
+        "🎌 Celebramos nuestra enseña patria y recordamos a Manuel Belgrano. 💙",
+      hashtags: "#DíaDeLaBandera #ManuelBelgrano",
+      key: "bandera",
+    },
+    {
+      cron: "30 10 2 10 *",
+      nombre: "Día del Notariado",
+      descripcion:
+        "✍️ Agradecemos a quienes garantizan seguridad jurídica en cada acto. ⚖️",
+      hashtags: "#Notariado #SeguridadJurídica",
+      key: "notariado",
+    },
+    {
+      cron: "30 10 1 5 *",
+      nombre: "Día de la Constitución Nacional",
+      descripcion:
+        "📜 Celebramos los principios que rigen nuestra nación y garantizan los derechos de todos. 🇦🇷",
+      hashtags: "#ConstituciónNacional #DerechoConstitucional",
+      key: "constitucion",
+    },
+    {
+      cron: "30 10 5 9 *",
+      nombre: "Día de la Mediación",
+      descripcion:
+        "🤝 Reconocemos la importancia del diálogo para resolver conflictos de manera justa y pacífica. 🕊️",
+      hashtags: "#Mediación #ResoluciónDeConflictos",
+      key: "mediacion",
+    },
+    {
+      cron: "30 10 18 7 *",
+      nombre: "Día del Procurador",
+      descripcion:
+        "📜 Homenajeamos a quienes representan y defienden los intereses del bien común. ⚖️",
+      hashtags: "#DíaDelProcurador #Derecho",
+      key: "procurador",
+    },
+    {
+      cron: "30 10 15 3 *",
+      nombre: "Día Mundial del Derecho de los Consumidores",
+      descripcion:
+        "🛍️ Fomentamos el respeto y la protección de los derechos de los consumidores en todo el mundo. 🌐",
+      hashtags: "#DerechosDelConsumidor #ProtecciónAlConsumidor",
+      key: "consumidores",
+    },
+    {
+      cron: "30 10 9 12 *",
+      nombre: "Día Internacional contra la Corrupción",
+      descripcion:
+        "🚨 Nos comprometemos a luchar contra la corrupción y garantizar la integridad en la justicia. ✨",
+      hashtags: "#NoALaCorrupción #JusticiaTransparente",
+      key: "corrupcion",
+    },
+    {
+      cron: "30 10 25 11 *",
+      nombre:
+        "Día Internacional de la Eliminación de la Violencia contra la Mujer",
+      descripcion:
+        "🛑 Decimos NO a la violencia contra las mujeres y promovemos la igualdad y la justicia. ✊",
+      hashtags: "#ViolenciaDeGeneroNo #JusticiaParaTodas #Igualdad",
+      key: "violencia_mujer",
+    },
+    {
+      cron: "30 10 17 7 *",
+      nombre: "Día Internacional de la Justicia Penal",
+      descripcion:
+        "⚖️ Reafirmamos el compromiso global con la justicia y el fin de la impunidad. 🌍",
+      hashtags: "#JusticiaPenal #CortePenalInternacional #Derecho",
+      key: "justicia_penal",
+    },
+    {
+      cron: "30 10 16 5 *",
+      nombre: "Día Mundial del Acceso a la Justicia",
+      descripcion:
+        "🔑 Impulsamos el acceso a la justicia como un derecho esencial para todos. 🌎",
+      hashtags: "#AccesoALaJusticia #DerechosHumanos",
+      key: "acceso_justicia",
+    },
+    {
+      cron: "30 10 5 6 *",
+      nombre: "Día del Derecho Ambiental",
+      descripcion:
+        "🌱 Promovemos el derecho a un ambiente sano y el compromiso con la sostenibilidad. 🌍",
+      hashtags: "#DerechoAmbiental #JusticiaVerde",
+      key: "derecho_ambiental",
     },
     {
       cron: "30 10 12 6 *",
       nombre: "Día Nacional contra el Trabajo Infantil",
+      descripcion:
+        "🚸 Decimos no al trabajo infantil y sí a la educación y la niñez plena. 📚",
       hashtags: "#TrabajoInfantilNo #DerechosDeLosNiños",
-      imagenes: ["DIA_TRABAJO_INFANTIL_01", "DIA_TRABAJO_INFANTIL_02"],
+      key: "trabajo_infantil",
     },
     {
       cron: "30 10 29 8 *",
       nombre: "Día del Abogado",
+      descripcion:
+        "⚖️ Celebramos a quienes trabajan incansablemente por la justicia y el derecho. 📜",
       hashtags: "#DiaDelAbogado #Derecho",
-      imagenes: ["DIA_ABOGADO_01", "DIA_ABOGADO_02"],
+      key: "abogado",
     },
     {
       cron: "30 10 23 9 *",
       nombre: "Día Contra la Explotación Sexual y Trata de Personas",
+      descripcion:
+        "🚫 Decimos basta a estas prácticas y buscamos justicia para las víctimas. ✊",
       hashtags: "#TrataDePersonasNo #Justicia",
-      imagenes: ["DIA_TRATA_01", "DIA_TRATA_02"],
+      key: "trata",
+    },
+    {
+      cron: "30 10 8 3 *",
+      nombre: "Día Internacional de la Mujer",
+      descripcion:
+        "🌸 Celebramos los derechos y logros de las mujeres en todo el mundo. 💪",
+      hashtags: "#DiaDeLaMujer #IgualdadDeGénero",
+      key: "mujer",
+    },
+    {
+      cron: "30 10 10 12 *",
+      nombre: "Día de los Derechos Humanos",
+      descripcion:
+        "🕊️ Reflexionamos sobre la importancia de defender la dignidad de todas las personas. 🌍",
+      hashtags: "#DerechosHumanos #Igualdad #Justicia",
+      key: "humanos",
+    },
+    {
+      cron: "30 10 1 2 *",
+      nombre: "Día del Abogado Laboralista",
+      descripcion:
+        "💼 Reconocemos a quienes trabajan para proteger los derechos laborales. ✊",
+      hashtags: "#AbogadoLaboralista #DerechoLaboral",
+      key: "laboralista",
     },
     {
       cron: "30 10 10 10 *",
       nombre: "Día de la Abogacía del Niño",
+      descripcion:
+        "👦👧 Promovemos la defensa de los derechos de la niñez y la adolescencia para un futuro lleno de justicia y equidad. ⚖️✨",
       hashtags: "#AbogaciaDelNiño #DerechosDeLaNiñez",
-      imagenes: ["DIA_ABOGACIA_NINO_01", "DIA_ABOGACIA_NINO_02"],
+      key: "abogado_infancias",
     },
     {
       cron: "30 10 3 12 *",
       nombre: "Día del Médico y del Derecho a la Salud",
+      descripcion:
+        "🩺🌍 Reafirmamos el acceso universal a la salud como un derecho fundamental para todas las personas. 💪❤️",
       hashtags: "#DerechoALaSalud #SaludParaTodos",
-      imagenes: ["DIA_SALUD_01", "DIA_SALUD_02"],
+      key: "derecho_salud",
     },
     {
       cron: "30 10 22 3 *",
       nombre: "Día Mundial del Agua",
+      descripcion:
+        "💧🌊 Defendemos el acceso al agua potable como un derecho humano esencial para la vida. 🌿✨",
       hashtags: "#DerechoAlAgua #AguaParaTodos",
-      imagenes: ["DIA_AGUA_01", "DIA_AGUA_02"],
+      key: "derecho_agua",
     },
     {
       cron: "30 10 28 4 *",
       nombre: "Día Mundial de la Seguridad y Salud en el Trabajo",
+      descripcion:
+        "🏢🦺 Fomentamos espacios laborales seguros, saludables y dignos para todos. 💼✨",
       hashtags: "#SeguridadLaboral #DerechosLaborales",
-      imagenes: ["DIA_SEGURIDAD_01", "DIA_SEGURIDAD_02"],
+      key: "seguridad_trabajo",
     },
     {
       cron: "30 10 16 11 *",
       nombre: "Día Internacional para la Tolerancia",
+      descripcion:
+        "🌍🤝 Celebramos la diversidad y promovemos la convivencia pacífica entre culturas para un mundo más unido. ❤️✨",
       hashtags: "#Tolerancia #Igualdad #DerechosHumanos",
-      imagenes: ["DIA_TOLERANCIA_01", "DIA_TOLERANCIA_02"],
+      key: "tolerancia",
     },
   ],
 };
@@ -189,9 +326,53 @@ const REGION_HOURS = {
 
 const admin = process.env.ADMIN_EMAIL;
 
+// Función genérica para ejecutar una tarea
+async function executeEfemerideTask(key, descripcion) {
+  try {
+    const checkToken = await checkTokenExpiration(accessToken);
 
+    if (checkToken.daysUntilExpiration === 0) {
+      logWithDetails.log(`Token expirado. No se ejecuta la tarea para: ${key}`);
+      return;
+    }
+
+    const year = moment().year();
+    const folderPath = [`posts/efemerides/${year}/${key}`];
+    const results = await getLinksFromFolders(folderPath);
+    const link = results.resources[0]?.url;
+
+    if (link) {
+      logWithDetails.info(`Ejecutando efeméride para ${key}: ${link}`);
+      const result = await uploadMedia(link, descripcion);
+      logWithDetails.info(`Tarea completada para ${key}:`, result);
+    } else {
+      logWithDetails.info(`No se encontró link para ${key}`);
+    }
+  } catch (error) {
+    logWithDetails.error(`Error en la tarea para ${key}: ${error}`);
+  }
+}
+
+// Registrar los cron jobs dinámicamente
+function registerEfemerides(cronSchedules) {
+  cronSchedules.efemerides.forEach(({ cron, key, descripcion }) => {
+    cron.schedule(cron, async () => {
+      logWithDetails.info(`Iniciando tarea programada para: ${key}`);
+      await executeEfemerideTask(key, descripcion);
+    });
+  });
+
+  logWithDetails.info(
+    `${cronSchedules.efemerides.length} efemérides programadas.`
+  );
+}
+
+// Ejecutar la función de registro
+//registerEfemerides(cronSchedules);
 
 const startCronJobs = async () => {
+
+  await scrapeNoticias();
 
   // Reporte diario de logs
   cron.schedule(
@@ -213,13 +394,13 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que notifica en Telegram datos laborales - servicio doméstico
+  // cron que notifica en Telegram datos laborales - servicio doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomesticoTelegram,
     async () => {
       try {
         logWithDetails.info(
-          `Cron que notifica datos laborales - servicio doméstico`
+          `cron que notifica datos laborales - servicio doméstico`
         );
         const found = await findDocumentsToPostOrNotify({
           notifiedByTelegram: false,
@@ -258,7 +439,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que notifica post de IG de datos laborales - servicios doméstico
+  // cron que notifica post de IG de datos laborales - servicios doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomestico,
     async () => {
@@ -347,7 +528,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que hace scraping sobre datos laborales - servicios doméstico
+  // cron que hace scraping sobre datos laborales - servicios doméstico
   cron.schedule(
     cronSchedules.notifyLaboralDomestico,
     async () => {
@@ -378,7 +559,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que hace scraping sobre datos laborales - servicio doméstico
+  // cron que hace scraping sobre datos laborales - servicio doméstico
   cron.schedule(
     cronSchedules.scrapingLaboral,
     async () => {
@@ -415,7 +596,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que hace scraping sobre datos previsionales
+  // cron que hace scraping sobre datos previsionales
   cron.schedule(
     cronSchedules.scrapingLegal,
     async () => {
@@ -454,7 +635,7 @@ const startCronJobs = async () => {
     },
     REGION_HOURS
   );
-  // Cron que notifica datos previsionales por IG
+  // cron que notifica datos previsionales por IG
   cron.schedule(
     cronSchedules.notifyPrev,
     async () => {
@@ -510,7 +691,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que envia mensajes Noticias a Telegram bot no notificados
+  // cron que envia mensajes Noticias a Telegram bot no notificados
   cron.schedule(
     cronSchedules.notifyNews,
     async () => {
@@ -525,7 +706,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que envia mensajes Normativa con Telegram bot no notificados
+  // cron que envia mensajes Normativa con Telegram bot no notificados
   cron.schedule(
     cronSchedules.notifyNewsHours,
     async () => {
@@ -540,7 +721,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que hace scraping en Noticias
+  // cron que hace scraping en Noticias
   cron.schedule(
     cronSchedules.scrapingNoticias,
     async () => {
@@ -557,7 +738,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que hace scraping en Normativa
+  // cron que hace scraping en Normativa
   cron.schedule(
     cronSchedules.scrapingActs,
     async () => {
@@ -572,7 +753,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que hace scraping en valores Fees Nación y Fees CABA
+  // cron que hace scraping en valores Fees Nación y Fees CABA
   cron.schedule(
     cronSchedules.scrapingFees,
     async () => {
@@ -589,7 +770,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que busca Cursos
+  // cron que busca Cursos
   cron.schedule(
     cronSchedules.scrapingCourses,
     async () => {
@@ -613,7 +794,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que notifica fees nuevos en Telegram y envía IG posts
+  // cron que notifica fees nuevos en Telegram y envía IG posts
   cron.schedule(
     cronSchedules.feesNotificationHours,
     async () => {
@@ -681,7 +862,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que notifica cursos los días 15 de cada mes
+  // cron que notifica cursos los días 15 de cada mes
   cron.schedule(
     cronSchedules.notifyCoursesHours,
     async () => {
@@ -701,7 +882,7 @@ const startCronJobs = async () => {
     },
     REGION_HOURS
   );
-  // Cron que notifica cursos los días 15 de cada mes
+  // cron que notifica cursos los días 15 de cada mes
   cron.schedule(
     cronSchedules.notifyNewCoursesHours,
     async () => {
@@ -722,7 +903,7 @@ const startCronJobs = async () => {
     REGION_HOURS
   );
 
-  // Cron que limpia el archivo de Logs
+  // cron que limpia el archivo de Logs
   cron.schedule(
     cronSchedules.cleanLogsHours,
     async () => {
