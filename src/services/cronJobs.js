@@ -372,8 +372,6 @@ function registerEfemerides(cronSchedules) {
 
 const startCronJobs = async () => {
 
-  await scrapeNoticias();
-
   // Reporte diario de logs
   cron.schedule(
     cronSchedules.loggerReportHours,
