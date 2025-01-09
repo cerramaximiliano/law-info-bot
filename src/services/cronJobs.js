@@ -79,6 +79,9 @@ const LogAnalyzer = require("./logAnalyzer");
 const { sendEmailController } = require("../controllers/emailControllers");
 const accessToken = process.env.IG_API_TOKEN;
 
+const cronRegex =
+  /^(\*|([0-9]|[1-5][0-9])) (\*|([0-9]|1[0-9]|2[0-3])) (\*|([1-9]|[12][0-9]|3[01])) (\*|([1-9]|1[0-2])) (\*|([0-6]))$/;
+
 const cronSchedules = {
   notifyNews: "30 10 * * 1-5",
   notifyNewsHours: "30 12 * * 1-5",
@@ -101,7 +104,7 @@ const cronSchedules = {
 
   efemerides: [
     {
-      cron: "30 10 0 1 1 *",
+      cronHours: "30 10 1 1 *",
       nombre: "Año Nuevo",
       descripcion:
         "🎉 Celebramos el inicio de un nuevo año lleno de esperanza y oportunidades. 🌟",
@@ -109,7 +112,7 @@ const cronSchedules = {
       key: "ano_nuevo",
     },
     {
-      cron: "30 10 25 5 *",
+      cronHours: "30 10 25 5 *",
       nombre: "Día de la Revolución de Mayo",
       descripcion:
         "🇦🇷 Conmemoramos el inicio del camino hacia la independencia en 1810. ✊",
@@ -117,7 +120,7 @@ const cronSchedules = {
       key: "revolucion_mayo",
     },
     {
-      cron: "30 10 9 7 *",
+      cronHours: "30 10 9 7 *",
       nombre: "Día de la Independencia",
       descripcion:
         "🎆 Celebramos nuestra libertad y la declaración de independencia en 1816. 🕊️",
@@ -125,7 +128,7 @@ const cronSchedules = {
       key: "independencia",
     },
     {
-      cron: "30 10 20 11 *",
+      cronHours: "30 10 20 11 *",
       nombre: "Día de la Soberanía Nacional",
       descripcion:
         "⚓ Homenajeamos a los héroes que defendieron nuestra soberanía en 1845. 🌊",
@@ -133,7 +136,7 @@ const cronSchedules = {
       key: "soberania",
     },
     {
-      cron: "30 10 2 4 *",
+      cronHours: "30 10 2 4 *",
       nombre: "Día del Veterano y de los Caídos en la Guerra de Malvinas",
       descripcion:
         "🎖️ Honramos a quienes dieron todo por nuestra patria en 1982. 🇦🇷",
@@ -141,7 +144,7 @@ const cronSchedules = {
       key: "malvinas",
     },
     {
-      cron: "30 10 20 6 *",
+      cronHours: "30 10 20 6 *",
       nombre: "Día de la Bandera",
       descripcion:
         "🎌 Celebramos nuestra enseña patria y recordamos a Manuel Belgrano. 💙",
@@ -149,7 +152,7 @@ const cronSchedules = {
       key: "bandera",
     },
     {
-      cron: "30 10 2 10 *",
+      cronHours: "30 10 2 10 *",
       nombre: "Día del Notariado",
       descripcion:
         "✍️ Agradecemos a quienes garantizan seguridad jurídica en cada acto. ⚖️",
@@ -157,7 +160,7 @@ const cronSchedules = {
       key: "notariado",
     },
     {
-      cron: "30 10 1 5 *",
+      cronHours: "30 10 1 5 *",
       nombre: "Día de la Constitución Nacional",
       descripcion:
         "📜 Celebramos los principios que rigen nuestra nación y garantizan los derechos de todos. 🇦🇷",
@@ -165,7 +168,7 @@ const cronSchedules = {
       key: "constitucion",
     },
     {
-      cron: "30 10 5 9 *",
+      cronHours: "30 10 5 9 *",
       nombre: "Día de la Mediación",
       descripcion:
         "🤝 Reconocemos la importancia del diálogo para resolver conflictos de manera justa y pacífica. 🕊️",
@@ -173,7 +176,7 @@ const cronSchedules = {
       key: "mediacion",
     },
     {
-      cron: "30 10 18 7 *",
+      cronHours: "30 10 18 7 *",
       nombre: "Día del Procurador",
       descripcion:
         "📜 Homenajeamos a quienes representan y defienden los intereses del bien común. ⚖️",
@@ -181,7 +184,7 @@ const cronSchedules = {
       key: "procurador",
     },
     {
-      cron: "30 10 15 3 *",
+      cronHours: "30 10 15 3 *",
       nombre: "Día Mundial del Derecho de los Consumidores",
       descripcion:
         "🛍️ Fomentamos el respeto y la protección de los derechos de los consumidores en todo el mundo. 🌐",
@@ -189,7 +192,7 @@ const cronSchedules = {
       key: "consumidores",
     },
     {
-      cron: "30 10 9 12 *",
+      cronHours: "30 10 9 12 *",
       nombre: "Día Internacional contra la Corrupción",
       descripcion:
         "🚨 Nos comprometemos a luchar contra la corrupción y garantizar la integridad en la justicia. ✨",
@@ -197,7 +200,7 @@ const cronSchedules = {
       key: "corrupcion",
     },
     {
-      cron: "30 10 25 11 *",
+      cronHours: "30 10 25 11 *",
       nombre:
         "Día Internacional de la Eliminación de la Violencia contra la Mujer",
       descripcion:
@@ -206,7 +209,7 @@ const cronSchedules = {
       key: "violencia_mujer",
     },
     {
-      cron: "30 10 17 7 *",
+      cronHours: "30 10 17 7 *",
       nombre: "Día Internacional de la Justicia Penal",
       descripcion:
         "⚖️ Reafirmamos el compromiso global con la justicia y el fin de la impunidad. 🌍",
@@ -214,7 +217,7 @@ const cronSchedules = {
       key: "justicia_penal",
     },
     {
-      cron: "30 10 16 5 *",
+      cronHours: "30 10 16 5 *",
       nombre: "Día Mundial del Acceso a la Justicia",
       descripcion:
         "🔑 Impulsamos el acceso a la justicia como un derecho esencial para todos. 🌎",
@@ -222,7 +225,7 @@ const cronSchedules = {
       key: "acceso_justicia",
     },
     {
-      cron: "30 10 5 6 *",
+      cronHours: "30 10 5 6 *",
       nombre: "Día del Derecho Ambiental",
       descripcion:
         "🌱 Promovemos el derecho a un ambiente sano y el compromiso con la sostenibilidad. 🌍",
@@ -230,7 +233,7 @@ const cronSchedules = {
       key: "derecho_ambiental",
     },
     {
-      cron: "30 10 12 6 *",
+      cronHours: "30 10 12 6 *",
       nombre: "Día Nacional contra el Trabajo Infantil",
       descripcion:
         "🚸 Decimos no al trabajo infantil y sí a la educación y la niñez plena. 📚",
@@ -238,7 +241,7 @@ const cronSchedules = {
       key: "trabajo_infantil",
     },
     {
-      cron: "30 10 29 8 *",
+      cronHours: "30 10 29 8 *",
       nombre: "Día del Abogado",
       descripcion:
         "⚖️ Celebramos a quienes trabajan incansablemente por la justicia y el derecho. 📜",
@@ -246,7 +249,7 @@ const cronSchedules = {
       key: "abogado",
     },
     {
-      cron: "30 10 23 9 *",
+      cronHours: "30 10 23 9 *",
       nombre: "Día Contra la Explotación Sexual y Trata de Personas",
       descripcion:
         "🚫 Decimos basta a estas prácticas y buscamos justicia para las víctimas. ✊",
@@ -254,7 +257,7 @@ const cronSchedules = {
       key: "trata",
     },
     {
-      cron: "30 10 8 3 *",
+      cronHours: "30 10 8 3 *",
       nombre: "Día Internacional de la Mujer",
       descripcion:
         "🌸 Celebramos los derechos y logros de las mujeres en todo el mundo. 💪",
@@ -262,7 +265,7 @@ const cronSchedules = {
       key: "mujer",
     },
     {
-      cron: "30 10 10 12 *",
+      cronHours: "30 10 10 12 *",
       nombre: "Día de los Derechos Humanos",
       descripcion:
         "🕊️ Reflexionamos sobre la importancia de defender la dignidad de todas las personas. 🌍",
@@ -270,7 +273,7 @@ const cronSchedules = {
       key: "humanos",
     },
     {
-      cron: "30 10 1 2 *",
+      cronHours: "30 10 1 2 *",
       nombre: "Día del Abogado Laboralista",
       descripcion:
         "💼 Reconocemos a quienes trabajan para proteger los derechos laborales. ✊",
@@ -278,7 +281,7 @@ const cronSchedules = {
       key: "laboralista",
     },
     {
-      cron: "30 10 10 10 *",
+      cronHours: "30 10 10 10 *",
       nombre: "Día de la Abogacía del Niño",
       descripcion:
         "👦👧 Promovemos la defensa de los derechos de la niñez y la adolescencia para un futuro lleno de justicia y equidad. ⚖️✨",
@@ -286,7 +289,7 @@ const cronSchedules = {
       key: "abogado_infancias",
     },
     {
-      cron: "30 10 3 12 *",
+      cronHours: "30 10 3 12 *",
       nombre: "Día del Médico y del Derecho a la Salud",
       descripcion:
         "🩺🌍 Reafirmamos el acceso universal a la salud como un derecho fundamental para todas las personas. 💪❤️",
@@ -294,7 +297,7 @@ const cronSchedules = {
       key: "derecho_salud",
     },
     {
-      cron: "30 10 22 3 *",
+      cronHours: "30 10 22 3 *",
       nombre: "Día Mundial del Agua",
       descripcion:
         "💧🌊 Defendemos el acceso al agua potable como un derecho humano esencial para la vida. 🌿✨",
@@ -302,7 +305,7 @@ const cronSchedules = {
       key: "derecho_agua",
     },
     {
-      cron: "30 10 28 4 *",
+      cronHours: "30 10 28 4 *",
       nombre: "Día Mundial de la Seguridad y Salud en el Trabajo",
       descripcion:
         "🏢🦺 Fomentamos espacios laborales seguros, saludables y dignos para todos. 💼✨",
@@ -310,7 +313,7 @@ const cronSchedules = {
       key: "seguridad_trabajo",
     },
     {
-      cron: "30 10 16 11 *",
+      cronHours: "30 10 16 11 *",
       nombre: "Día Internacional para la Tolerancia",
       descripcion:
         "🌍🤝 Celebramos la diversidad y promovemos la convivencia pacífica entre culturas para un mundo más unido. ❤️✨",
@@ -355,20 +358,26 @@ async function executeEfemerideTask(key, descripcion) {
 
 // Registrar los cron jobs dinámicamente
 function registerEfemerides(cronSchedules) {
-  cronSchedules.efemerides.forEach(({ cron, key, descripcion }) => {
-    cron.schedule(cron, async () => {
-      logWithDetails.info(`Iniciando tarea programada para: ${key}`);
-      await executeEfemerideTask(key, descripcion);
-    });
+  cronSchedules.forEach(({ cronHours, key, descripcion }) => {
+    if (cronHours && cronRegex.test(cronHours)) {
+      cron.schedule(
+        cronHours,
+        async () => {
+          logWithDetails.info(`Iniciando tarea programada para: ${key}`);
+          await executeEfemerideTask(key, descripcion);
+        },
+        {
+          REGION_HOURS,
+        }
+      );
+    }
   });
 
-  logWithDetails.info(
-    `${cronSchedules.efemerides.length} efemérides programadas.`
-  );
+  logWithDetails.info(`${cronSchedules.length} efemérides programadas.`);
 }
 
 // Ejecutar la función de registro
-//registerEfemerides(cronSchedules);
+registerEfemerides(cronSchedules.efemerides);
 
 const startCronJobs = async () => {
   // Reporte diario de logs
