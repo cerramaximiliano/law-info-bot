@@ -5,19 +5,22 @@ const { logWithDetails } = require("../config/logger");
 
 const cleanDirectory = async (directoryPath) => {
   try {
-    // Lee todos los archivos en la carpeta especificada
-    const files = await fs.readdir(directoryPath);
-
-    // Recorre cada archivo y elimínalo
-    for (const file of files) {
-      const filePath = path.join(directoryPath, file);
-      await fs.unlink(filePath);
-      logWithDetails.info(`Archivo eliminado: ${filePath}`);
-    }
-
-    logWithDetails.info("La carpeta ha sido limpiada correctamente.");
+      const files = await fs.readdir(directoryPath);
+      
+      for (const file of files) {
+          const filePath = path.join(directoryPath, file);
+          const stats = await fs.stat(filePath);
+          
+          if (stats.isDirectory()) {
+              await cleanDirectory(filePath); // Recursión para subdirectorios
+              await fs.rmdir(filePath);
+          } else {
+              await fs.unlink(filePath);
+          }
+          logWithDetails.info(`Eliminado: ${filePath}`);
+      }
   } catch (error) {
-    logWithDetails.error("Error al limpiar la carpeta:", error);
+      logWithDetails.error("Error al limpiar:", error);
   }
 };
 

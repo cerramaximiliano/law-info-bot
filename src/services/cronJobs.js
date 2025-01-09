@@ -65,7 +65,7 @@ const { cleanDirectory, cleanupLocalFile } = require("../utils/manageFiles");
 const { extractData, iterateTextByLine } = require("../utils/readFile");
 const { askQuestion } = require("./chatgpt");
 const moment = require("moment");
-const { text } = require("../files/legales/text");
+
 const {
   agruparPorFechaYCategoria,
   guardarDatosAgrupados,
@@ -96,7 +96,7 @@ const cronSchedules = {
   feesNotificationHours: "46 16 * * 1-5",
   notifyCoursesHours: "0 9 15 * *",
   notifyNewCoursesHours: "0 9 16 * *",
-  cleanLogsHours: "0 0 15,30 * *",
+  cleanLogsHours: "0 0 15,28 * *", //Se ejecuta todos los 15 y 28 de cada mes a las 0 Horas
   loggerReportHours: "58 23 * * 1-5",
 
   efemerides: [
@@ -909,7 +909,7 @@ const startCronJobs = async () => {
     async () => {
       logWithDetails.log("Se ejecuta limpieza de logs");
       clearLogs();
-      cleanDirectory("./src/files");
+      cleanDirectory("src/files");
     },
     REGION_HOURS
   );

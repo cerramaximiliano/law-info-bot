@@ -68,9 +68,9 @@ ensureLogDirectory().catch(console.error);
 const clearLogs = async () => {
   try {
     await fs.truncate(logFilePath, 0);
-    logger.info("Archivo de logs limpiado correctamente.");
+    logWithDetails.info("Archivo de logs limpiado correctamente.");
   } catch (err) {
-    logger.error("Error al limpiar el archivo de logs:", err);
+    logWithDetails.error("Error al limpiar el archivo de logs:", err);
   }
 };
 
