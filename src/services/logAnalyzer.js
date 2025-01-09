@@ -7,64 +7,82 @@ class LogAnalyzer {
     }
 
     async analyzeByDate(date) {
-        const content = await fs.readFile(this.logFilePath, 'utf8');
-        const lines = content.split('\n').filter(line => line);
-        
-        const dateStr = date.toISOString().split('T')[0];
-        const dailyLogs = lines.filter(line => line.includes(dateStr));
-        
-        // Contar inicializaciones
-        const appInitializations = dailyLogs.filter(line => 
-            line.toLowerCase().includes('aplicación iniciada')
-        ).length;
-
-        const analysis = {
-            total: dailyLogs.length,
-            byLevel: {},
-            byFile: {},
-            errorDetails: [],
-            appInitializations
-        };
-
-        dailyLogs.forEach(log => {
-            const { level, file, line, message } = this.parseLine(log);
+        try {
+            const content = await fs.readFile(this.logFilePath, 'utf8');
+            const lines = content.split('\n').filter(line => line);
             
-            analysis.byLevel[level] = (analysis.byLevel[level] || 0) + 1;
+            const dateStr = date.toISOString().split('T')[0];
+            const dailyLogs = lines.filter(line => line.includes(dateStr));
             
-            if (file) {
-                if (!analysis.byFile[file]) {
-                    analysis.byFile[file] = {
-                        totalIssues: 0,
-                        byLevel: {},
-                        lineNumbers: new Set()
-                    };
+            // Contar inicializaciones
+            const appInitializations = dailyLogs.filter(line => 
+                line.toLowerCase().includes('aplicación iniciada')
+            ).length;
+    
+            const analysis = {
+                total: dailyLogs.length,
+                byLevel: {},
+                byFile: {},
+                errorDetails: [],
+                appInitializations
+            };
+    
+            dailyLogs.forEach(log => {
+                const { level, file, line, message } = this.parseLine(log);
+                
+                analysis.byLevel[level] = (analysis.byLevel[level] || 0) + 1;
+                
+                if (file) {
+                    if (!analysis.byFile[file]) {
+                        analysis.byFile[file] = {
+                            totalIssues: 0,
+                            byLevel: {},
+                            lineNumbers: new Set()
+                        };
+                    }
+                    analysis.byFile[file].totalIssues++;
+                    analysis.byFile[file].byLevel[level] = (analysis.byFile[file].byLevel[level] || 0) + 1;
+                    analysis.byFile[file].lineNumbers.add(line);
                 }
-                analysis.byFile[file].totalIssues++;
-                analysis.byFile[file].byLevel[level] = (analysis.byFile[file].byLevel[level] || 0) + 1;
-                analysis.byFile[file].lineNumbers.add(line);
+    
+                if (level === 'error') {
+                    analysis.errorDetails.push({ file, line, message });
+                }
+            });
+    
+            Object.values(analysis.byFile).forEach(fileData => {
+                fileData.lineNumbers = Array.from(fileData.lineNumbers);
+            });
+    
+            return {
+                date: dateStr,
+                ...analysis,
+                dailyLogs, // Exponemos los logs
+                recommendations: this.generateRecommendations(analysis)
+            };
+        }catch(error){
+            if (error.code === 'ENOENT') {
+                return {
+                    date: date.toISOString().split('T')[0],
+                    total: 0,
+                    byLevel: {},
+                    byFile: {},
+                    errorDetails: [],
+                    appInitializations: 0,
+                    dailyLogs: [],
+                    recommendations: []
+                };
             }
+            throw error; 
+        }
 
-            if (level === 'error') {
-                analysis.errorDetails.push({ file, line, message });
-            }
-        });
-
-        Object.values(analysis.byFile).forEach(fileData => {
-            fileData.lineNumbers = Array.from(fileData.lineNumbers);
-        });
-
-        return {
-            date: dateStr,
-            ...analysis,
-            recommendations: this.generateRecommendations(analysis)
-        };
     }
 
     parseLine(line) {
-        const levelMatch = /\] (error|warn|info|debug|verbose):/.exec(line);
+        const levelMatch = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} (error|warn|info|debug|verbose):/.exec(line);
         const fileMatch = /File: ([^,]+), Line: (\d+)/.exec(line);
         const messageMatch = /: ([^(]+)/.exec(line);
-
+    
         return {
             level: levelMatch ? levelMatch[1] : 'unknown',
             file: fileMatch ? fileMatch[1] : null,
@@ -124,9 +142,23 @@ class LogAnalyzer {
                 }))
                 .sort((a, b) => b.errors - a.errors),
             recommendations: analysis.recommendations,
-            errorDetails: analysis.errorDetails
+            errorDetails: analysis.errorDetails,
+            logs: analysis.dailyLogs // Agregamos los logs al reporte
         };
-
+    
+        // Crear directorio si no existe
+        const reportDir = path.join(process.cwd(), 'src', 'files', 'reports');
+        await fs.mkdir(reportDir, { recursive: true });
+    
+        // Generar nombre de archivo con timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `report-${analysis.date}-${timestamp}.json`;
+        const filepath = path.join(reportDir, filename);
+    
+        // Guardar reporte
+        await fs.writeFile(filepath, JSON.stringify(report, null, 2));
+        report.filepath = filepath;
+    
         return report;
     }
 }

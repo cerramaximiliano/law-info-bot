@@ -18,6 +18,8 @@
     "generic-pool": "^3.9.0",
     "got": "^14.4.2",
     "langchain": "^0.3.4",
+    "mime": "^4.0.6",
+    "mime-types": "^2.1.35",
     "moment": "^2.30.1",
     "moment-timezone": "^0.5.45",
     "mongoose": "^6.3.3",

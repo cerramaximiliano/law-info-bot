@@ -97,7 +97,7 @@ const cronSchedules = {
   notifyCoursesHours: "0 9 15 * *",
   notifyNewCoursesHours: "0 9 16 * *",
   cleanLogsHours: "0 0 15,30 * *",
-  loggerReportHours: "59 23 * * 1-5",
+  loggerReportHours: "58 23 * * 1-5",
 
   efemerides: [
     {
@@ -371,19 +371,21 @@ function registerEfemerides(cronSchedules) {
 //registerEfemerides(cronSchedules);
 
 const startCronJobs = async () => {
-
   // Reporte diario de logs
   cron.schedule(
     cronSchedules.loggerReportHours,
     async () => {
       try {
         const analyzer = new LogAnalyzer("src/logs/app.log");
-        const report = await analyzer.generateReport(new Date());
+        const endOfDay = moment.utc().endOf("day").toDate();
+        const report = await analyzer.generateReport(endOfDay);
+
         const textReport = formatLogReportEmail(report);
         sendEmailController(
           admin,
           textReport,
-          `[LOG REPORT] LAW BOT ${moment().format("DD-MM-YYYY")}`
+          `[LOG REPORT] LAW BOT ${moment().format("DD-MM-YYYY")}`,
+          [report.filepath]
         );
       } catch (error) {
         logWithDetails.error(`Error logger report: ${error}`);
