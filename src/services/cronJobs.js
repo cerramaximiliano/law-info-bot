@@ -101,7 +101,7 @@ const cronSchedules = {
   notifyCoursesHours: "0 9 15 * *",
   notifyNewCoursesHours: "0 9 16 * *",
   cleanLogsHours: "0 0 15,28 * *", //Se ejecuta todos los 15 y 28 de cada mes a las 0 Horas
-  loggerReportHours: "58 23 * * 1-5",
+  loggerReportHours: "10 20 * * 1-5",
 
   efemerides: [
     {
@@ -388,7 +388,7 @@ const startCronJobs = async () => {
       try {
         const analyzer = new LogAnalyzer("src/logs/app.log");
         const regionTimezone = "America/Argentina/Buenos_Aires";
-        const endOfDay = momentTz.tz(regionTimeZone).endOf("day").toDate();
+        const endOfDay = momentTz.tz(regionTimezone).endOf("day").toDate();
         const report = await analyzer.generateReport(endOfDay);
 
         const textReport = formatLogReportEmail(report);
