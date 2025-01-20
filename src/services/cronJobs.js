@@ -398,7 +398,7 @@ const startCronJobs = async () => {
         sendEmailController(
           admin,
           textReport,
-          `[LOG REPORT] LAW BOT ${moment().format("DD-MM-YYYY")}`,
+          `[LOG REPORT] LAW BOT ${endOfDay.format("DD-MM-YYYY")}`,
           [report.filepath]
         );
       } catch (error) {
