@@ -65,6 +65,7 @@ const { cleanDirectory, cleanupLocalFile } = require("../utils/manageFiles");
 const { extractData, iterateTextByLine } = require("../utils/readFile");
 const { askQuestion } = require("./chatgpt");
 const moment = require("moment");
+const momentTz = require("moment-timezone");
 
 const {
   agruparPorFechaYCategoria,
@@ -386,7 +387,8 @@ const startCronJobs = async () => {
     async () => {
       try {
         const analyzer = new LogAnalyzer("src/logs/app.log");
-        const endOfDay = moment.utc().endOf("day").toDate();
+        const regionTimezone = "America/Argentina/Buenos_Aires";
+        const endOfDay = momentTz.tz(regionTimeZone).endOf("day").toDate();
         const report = await analyzer.generateReport(endOfDay);
 
         const textReport = formatLogReportEmail(report);
