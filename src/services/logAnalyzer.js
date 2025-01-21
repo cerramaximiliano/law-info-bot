@@ -10,7 +10,7 @@ class LogAnalyzer {
     try {
       const content = await fs.readFile(this.logFilePath, "utf8");
       const lines = content.split("\n").filter((line) => line);
-      console.log(lines);
+      console.log("Last line", lines[lines.length - 1]);
       const dateStr = momentTz(date)
         .tz("America/Argentina/Buenos_Aires")
         .format("YYYY-MM-DD");
