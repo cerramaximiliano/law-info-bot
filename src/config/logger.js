@@ -15,66 +15,80 @@ async function ensureLogDirectory() {
   }
 }
 
+// Función para verificar y limpiar el log si excede el tamaño
+async function checkAndResetLogFile() {
+  try {
+    const stats = await fs.stat(logFilePath);
+    const fileSizeInMB = stats.size / (1024 * 1024);
+    
+    if (fileSizeInMB >= MAX_LOG_SIZE_MB) {
+      await fs.writeFile(logFilePath, ''); // Limpia el archivo
+      logger.info('Log file has been reset due to size limit');
+    }
+  } catch (error) {
+    // Si el archivo no existe, no hacemos nada
+    if (error.code !== 'ENOENT') {
+      console.error('Error checking log file:', error);
+    }
+  }
+}
+
 const logger = winston.createLogger({
   level: "info",
   format: format.combine(
     format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
     format.errors({ stack: true }),
-    format.printf(
-      ({ timestamp, level, message, stack, file, line, functionName }) => {
-        const filePath = file ? path.relative(process.cwd(), file) : "";
-        return `${timestamp} ${level}: ${message}${
-          filePath
-            ? ` (File: ${filePath}, Line: ${line}, Function: ${
-                functionName || "anonymous"
-              })`
-            : ""
-        }${stack ? `, Stack: ${stack}` : ""}`;
-      }
-    )
+    format.printf(({ timestamp, level, message, stack, file, line, functionName }) => {
+      const filePath = file ? path.relative(process.cwd(), file) : "";
+      return `${timestamp} ${level}: ${message}${
+        filePath ? ` (File: ${filePath}, Line: ${line}, Function: ${functionName || 'anonymous'})` : ""
+      }${stack ? `, Stack: ${stack}` : ""}`;
+    })
   ),
   transports: [
     new winston.transports.Console(),
-    new winston.transports.File({
-      filename: logFilePath,
-      maxsize: MAX_LOG_SIZE_MB * 1024 * 1024,
-      tailable: true,
-    }),
+    new winston.transports.Stream({
+      stream: require('fs').createWriteStream(logFilePath, { flags: 'a' })
+    })
   ],
 });
 
+// Verificar tamaño antes de cada log
+const originalLog = logger.log.bind(logger);
+logger.log = async function(...args) {
+  await checkAndResetLogFile();
+  originalLog.apply(this, args);
+};
+
 function createLogWithDetails(level) {
-  return function (message) {
-    const stack = new Error().stack.split("\n")[2].trim();
-
-    // Primera expresión regular para capturar la función
+  return async function(message) {
+    const stack = new Error().stack.split('\n')[2].trim();
+    
     const functionMatch = stack.match(/at (\w+|\w+\.\w+) /);
-    let functionName = "anonymous";
-
+    let functionName = 'anonymous';
+    
     if (functionMatch && functionMatch[1]) {
       functionName = functionMatch[1];
     }
-
-    // Segunda expresión regular para capturar archivo y línea
+    
     const locationMatch = stack.match(/(.*):(\d+):\d+/);
-
+    
     if (locationMatch) {
       const [, file, line] = locationMatch;
-      const relativePath =
-        file.split("law-info-bot/")[1] || file.split("/").slice(-2).join("/");
-
+      const relativePath = file.split('law-info-bot/')[1] || file.split('/').slice(-2).join('/');
+      
       logger.log({
         level,
         message,
         file: relativePath,
         line,
-        functionName,
+        functionName
       });
     } else {
       logger.log({
         level,
         message,
-        functionName,
+        functionName
       });
     }
   };
@@ -93,7 +107,7 @@ ensureLogDirectory().catch(console.error);
 
 const clearLogs = async () => {
   try {
-    await fs.truncate(logFilePath, 0);
+    await fs.writeFile(logFilePath, '');
     logWithDetails.info("Archivo de logs limpiado correctamente.");
   } catch (err) {
     logWithDetails.error("Error al limpiar el archivo de logs:", err);
