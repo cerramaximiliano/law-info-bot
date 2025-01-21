@@ -10,13 +10,14 @@ class LogAnalyzer {
     try {
       const content = await fs.readFile(this.logFilePath, "utf8");
       const lines = content.split("\n").filter((line) => line);
-
+      console.log(date);
       const dateStr = momentTz(date)
         .tz("America/Argentina/Buenos_Aires")
         .format("YYYY-MM-DD");
-      console.log(dateStr);
+      console.log("Date string", dateStr);
       const dailyLogs = lines.filter((line) => line.includes(dateStr));
-
+      console.log(dailyLogs);
+      
       // Contar inicializaciones
       const appInitializations = dailyLogs.filter((line) =>
         line.toLowerCase().includes("aplicación iniciada")
