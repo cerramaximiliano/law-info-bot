@@ -1,9 +1,43 @@
 const fs = require("fs").promises;
 const path = require("path");
 const momentTz = require("moment-timezone");
+
+const MAX_REPORTS = 10;
 class LogAnalyzer {
   constructor(logFilePath) {
     this.logFilePath = logFilePath;
+    this.reportDir = path.join(process.cwd(), "src", "files", "reports");
+  }
+
+  async cleanOldReports() {
+    try {
+      // Obtener todos los archivos en el directorio
+      const files = await fs.readdir(this.reportDir);
+
+      // Filtrar solo los archivos de reporte
+      const reportFiles = files.filter((file) => file.startsWith("report-"));
+
+      // Si hay más archivos que el máximo permitido
+      if (reportFiles.length > MAX_REPORTS) {
+        // Obtener stats de cada archivo para ordenar por fecha de creación
+        const fileStats = await Promise.all(
+          reportFiles.map(async (file) => ({
+            name: file,
+            path: path.join(this.reportDir, file),
+            stats: await fs.stat(path.join(this.reportDir, file)),
+          }))
+        );
+
+        // Ordenar por fecha de creación, más reciente primero
+        fileStats.sort((a, b) => b.stats.ctime - a.stats.ctime);
+
+        // Eliminar los archivos más antiguos que excedan el límite
+        const filesToDelete = fileStats.slice(MAX_REPORTS);
+        await Promise.all(filesToDelete.map((file) => fs.unlink(file.path)));
+      }
+    } catch (error) {
+      console.error("Error cleaning old reports:", error);
+    }
   }
 
   async analyzeByDate(date) {
@@ -126,7 +160,6 @@ class LogAnalyzer {
   }
 
   async generateReport(date = new Date()) {
-
     const analysis = await this.analyzeByDate(date);
 
     const report = {
@@ -164,6 +197,8 @@ class LogAnalyzer {
     // Guardar reporte
     await fs.writeFile(filepath, JSON.stringify(report, null, 2));
     report.filepath = filepath;
+
+    await this.cleanOldReports();
 
     return report;
   }
