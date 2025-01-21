@@ -382,6 +382,22 @@ registerEfemerides(cronSchedules.efemerides);
 
 const startCronJobs = async () => {
 
+  const analyzer = new LogAnalyzer("src/logs/app.log");
+  const regionTimezone = "America/Argentina/Buenos_Aires";
+  const nowInTimezone = momentTz().tz(regionTimezone);
+  const endOfDay = nowInTimezone.endOf("day");
+  console.log(endOfDay);
+  const report = await analyzer.generateReport(endOfDay);
+
+  const textReport = formatLogReportEmail(report);
+
+    sendEmailController(
+    admin,
+    textReport,
+    `[LOG REPORT] LAW BOT ${endOfDay.format("DD-MM-YYYY")}`,
+    [report.filepath]
+  );
+
   // Reporte diario de logs
   cron.schedule(
     cronSchedules.loggerReportHours,
