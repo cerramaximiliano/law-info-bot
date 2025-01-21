@@ -10,13 +10,10 @@ class LogAnalyzer {
     try {
       const content = await fs.readFile(this.logFilePath, "utf8");
       const lines = content.split("\n").filter((line) => line);
-      console.log("Last line", lines[lines.length - 1]);
       const dateStr = momentTz(date)
         .tz("America/Argentina/Buenos_Aires")
         .format("YYYY-MM-DD");
-      console.log("Date string", dateStr);
       const dailyLogs = lines.filter((line) => line.includes(dateStr));
-      console.log(dailyLogs);
 
       // Contar inicializaciones
       const appInitializations = dailyLogs.filter((line) =>
@@ -129,9 +126,9 @@ class LogAnalyzer {
   }
 
   async generateReport(date = new Date()) {
-    console.log(date);
+
     const analysis = await this.analyzeByDate(date);
-    console.log(analysis.date);
+
     const report = {
       date: analysis.date,
       summary: {
