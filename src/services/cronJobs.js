@@ -274,7 +274,7 @@ const cronSchedules = {
       key: "humanos",
     },
     {
-      cronHours: "30 10 1 2 *",
+      cronHours: "30 10 7 7 *",
       nombre: "Día del Abogado Laboralista",
       descripcion:
         "💼 Reconocemos a quienes trabajan para proteger los derechos laborales. ✊",
@@ -381,11 +381,6 @@ function registerEfemerides(cronSchedules) {
 registerEfemerides(cronSchedules.efemerides);
 
 const startCronJobs = async () => {
-  const lastData = await obtenerUltimaFecha();
-  const resultsDomesticos = await scrapeDomesticos(
-    process.env.LABORAL_PAGE_2,
-    lastData.fecha
-  );
 
   // Reporte diario de logs
   cron.schedule(
