@@ -381,6 +381,11 @@ function registerEfemerides(cronSchedules) {
 registerEfemerides(cronSchedules.efemerides);
 
 const startCronJobs = async () => {
+  const lastData = await obtenerUltimaFecha();
+  const resultsDomesticos = await scrapeDomesticos(
+    process.env.LABORAL_PAGE_2,
+    lastData.fecha
+  );
 
   // Reporte diario de logs
   cron.schedule(

@@ -9,6 +9,9 @@ const {
   parseDate,
   parseDateFormat,
   formatPeriod,
+  monthNames,
+  obtenerNumeroMes,
+  normalizarMes,
 } = require("../utils/formatDate");
 const moment = require("moment");
 require("moment/locale/es");
@@ -604,11 +607,11 @@ const scrapeSaij = async () => {
             const titleElement = detalle.querySelector(".titulo-norma a");
             const title = titleElement
               ? titleElement.textContent.trim() +
-                " (" +
-                (detalle
-                  .querySelector(".subtitulo-norma")
-                  ?.textContent.trim() || "") +
-                ")"
+              " (" +
+              (detalle
+                .querySelector(".subtitulo-norma")
+                ?.textContent.trim() || "") +
+              ")"
               : "";
             const text =
               detalle.querySelector(".sintesis")?.textContent.trim() || "";
@@ -839,8 +842,7 @@ const scrapeGPCourses = async () => {
                 await nuevoCurso.save();
                 savedCount++;
                 logWithDetails.info(
-                  `Curso guardado: ${
-                    curso.title
+                  `Curso guardado: ${curso.title
                   } (Fecha: ${parsedDate.toISOString()})`
                 );
               } else {
@@ -1045,8 +1047,7 @@ const scrapeDiplomados = async () => {
                 await nuevoCurso.save();
                 savedCount++;
                 logWithDetails.info(
-                  `Diplomado guardado: ${
-                    diplomado.title
+                  `Diplomado guardado: ${diplomado.title
                   } (Fecha: ${parsedDate.toISOString()})`
                 );
               } else {
@@ -1231,8 +1232,7 @@ const scrapeUBATalleres = async () => {
                     await nuevoCurso.save();
                     savedCount++;
                     logWithDetails.info(
-                      `Taller guardado: ${
-                        taller.title
+                      `Taller guardado: ${taller.title
                       } (Fecha: ${parsedDate.format("DD/MM/YYYY")})`
                     );
                   } else {
@@ -1307,7 +1307,7 @@ const scrapeUBATalleres = async () => {
 const scrapeUBAProgramas = async () => {
   let browser;
   try {
-  logWithDetails.info("Esperando inicialización del pool...");
+    logWithDetails.info("Esperando inicialización del pool...");
     await waitForInitialization();
     logWithDetails.info("Pool inicializado correctamente");
 
@@ -1442,8 +1442,7 @@ const scrapeUBAProgramas = async () => {
                     await nuevoPrograma.save();
                     savedCount++;
                     logWithDetails.info(
-                      `Programa guardado: ${
-                        programa.title
+                      `Programa guardado: ${programa.title
                       } (Fecha: ${parsedDate.format("DD/MM/YYYY")})`
                     );
                   } else {
@@ -2325,10 +2324,10 @@ const scrapePrevisionalLink = async (link) => {
             mobilityParagraph.textContent.match(/\d+[.,]\d+\s?%/);
           return percentageMatch
             ? {
-                tipo: "Aumento General",
-                importe: percentageMatch[0],
-                order: 0,
-              }
+              tipo: "Aumento General",
+              importe: percentageMatch[0],
+              order: 0,
+            }
             : null;
         }
         return null;
@@ -2423,8 +2422,7 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
 
             if (fecha === "Fecha no encontrada") {
               warnings.push(
-                `Advertencia: No se encontró la fecha para la tabla ${
-                  tableIndex + 1
+                `Advertencia: No se encontró la fecha para la tabla ${tableIndex + 1
                 }`
               );
               return;
@@ -2437,10 +2435,8 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
 
             if (fechaMatch) {
               const [, day, monthStr, year] = fechaMatch;
-              const month =
-                monthNames[monthStr.toUpperCase()] ||
-                monthNames[monthStr.toLowerCase()];
-
+              const month = obtenerNumeroMes(monthStr);
+              
               if (day && month && year) {
                 const dateObj = new Date(
                   Date.UTC(
@@ -2457,8 +2453,7 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
                   fecha = dateObj.toISOString();
                 } else {
                   warnings.push(
-                    `Advertencia: Fecha inválida en tabla ${
-                      tableIndex + 1
+                    `Advertencia: Fecha inválida en tabla ${tableIndex + 1
                     }: ${fecha}`
                   );
                   return;
@@ -2555,8 +2550,8 @@ const scrapeDomesticos = async (urlPage, fechaInicio) => {
 
       const filteredResults = fechaInicio
         ? data.resultados.filter(({ fecha }) =>
-            moment(fecha).isAfter(fechaInicioMoment, "day")
-          )
+          moment(fecha).isAfter(fechaInicioMoment, "day")
+        )
         : data.resultados;
 
       return {
