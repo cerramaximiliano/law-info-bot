@@ -25,6 +25,11 @@ const cronSchedules = {
     cleanLogsHours: "0 0 15,28 * *", //Se ejecuta todos los 15 y 28 de cada mes a las 0 Horas
     loggerReportHours: "50 23 * * 1-5",
 
+
+    scrapingLaboralComercio: "0 5 5-15 * *", //Se ejecta del 5 al 15 de cada mes
+    scrapingLaboralConstruccion: "10 5 5-15 * *", // Se ejecuta del 5 al 15 de cada mes
+
+
     efemerides: [
         {
             cronHours: "30 10 1 1 *",

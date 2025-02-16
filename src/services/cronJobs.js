@@ -39,6 +39,7 @@ const {
 } = require("../utils/formatText");
 const { renderTables, example } = require("../utils/formatHTML");
 const { generateTelegramMessageDomesticos } = require("../utils/formatText");
+const { obtenerNumeroMes } = require("../utils/formatDate");
 const { generateScreenshot } = require("../utils/generateImages");
 const {
   newFeesPosts,
@@ -51,6 +52,10 @@ const {
   uploadCarouselMedia,
   checkTokenExpiration,
 } = require("../controllers/igControllers");
+const { saveComercio, findByDateComercio } = require("../controllers/comercioControllers")
+const { saveConstruccion,
+  findByDateConstruccion } = require("../controllers/construccionControllers");
+const { saveGastronomia, findByDateGastronomia } = require("../controllers/gastronomiaControllers");
 const {
   uploadImage,
   deleteImage,
@@ -64,11 +69,14 @@ const {
 const { cleanDirectory, cleanupLocalFile } = require("../utils/manageFiles");
 const { extractData, iterateTextByLine } = require("../utils/readFile");
 const { askQuestion } = require("./chatgpt");
+const { legalSystemRole } = require("../config/gptConfig");
 const moment = require("moment");
 const momentTz = require("moment-timezone");
 const { REGION_HOURS, cronSchedules } = require("../config/cronConfig")
-const { cronRegex, registerEfemerides } = require("../utils/cronUtils")
-
+const { registerEfemerides } = require("../utils/cronUtils")
+const { searchWebData } = require("./search")
+const { processSalaryData, compareObjects } = require("../utils/gptUtils")
+const { comercioGptResponseModel } = require("../gptModels/laboralModels")
 const {
   agruparPorFechaYCategoria,
   guardarDatosAgrupados,
@@ -83,10 +91,105 @@ const { sendEmailController } = require("../controllers/emailControllers");
 const accessToken = process.env.IG_API_TOKEN;
 const admin = process.env.ADMIN_EMAIL;
 
-// Ejecutar la función de registro
+// Ejecutar la función de registro de cron de efemerides
 registerEfemerides(cronSchedules.efemerides);
 
 const startCronJobs = async () => {
+
+
+
+
+  const currentMonth = moment().format("MMMM");
+  const currentYear = moment().format("YYYY");
+  const month = obtenerNumeroMes(currentMonth);
+  const fechaActual = moment(`${currentYear}-${month}-01`, "YYYY-MM-DD");
+  const fechaConsulta = fechaActual.clone().startOf('month');
+  const findRecord = await findByDateGastronomia(fechaConsulta)
+
+  if (findRecord.exito ){
+    logWithDetails.info(`No hay actualizaciones para Empleados de Gastronomía y Hotelería.`)
+  }else {
+    logWithDetails.info(`Actualizando base de datos Empleados de Gastronomía y Hotelería`)
+    const searchResults = await searchWebData(`escalas salariales gastronomía argentina ${currentMonth} ${currentYear}`, 10, "hoteleria");
+    const result = await askQuestion(`Basado en estas fuentes, necesito datos de salarios devengados en  ${currentMonth} de ${currentYear} en materia salarial de hotelería y gastronomía de cada una de las fuentes. Si no hubo actualizaciones en ${currentMonth} ${currentYear}, devuelve un resultado de salarios vacio:\n\n${searchResults.map(r => `Contenido: ${r.content}`).join("\n\n")}.`, legalSystemRole(comercioGptResponseModel))
+    const data = processSalaryData(result.choices[0].message.content, fechaConsulta);
+    if (data.exito) {
+      logWithDetails.info("Hay actualizaciones de escala salarial de Hoteleros y Gastronómicos.")
+      const result = compareObjects(data.actualizaciones_salariales)
+      const save = saveGastronomia(result)
+    }else {
+      logWithDetails.info(`No hay actualizaciones de escala salarial de Hoteleros y Gastronómicos: ${data.error}`)
+    }
+  }
+
+
+  cron.schedule(
+    cronSchedules.scrapingLaboralConstruccion,
+    async () => {
+      try {
+        const currentMonth = moment().format("MMMM");
+        const currentYear = moment().format("YYYY");
+        const month = obtenerNumeroMes(currentMonth);
+        const fechaActual = moment(`${currentYear}-${month}-01`, "YYYY-MM-DD");
+        const fechaConsulta = fechaActual.clone().startOf('month');
+        const findRecord = await findByDateConstruccion(fechaConsulta)
+
+        if (findRecord.exito) {
+          logWithDetails.info(`No hay actualizaciones para Empleados de Construcción.`)
+        } else {
+          logWithDetails.info("Actualizando base de datos Empleados de Construcción.")
+          const searchResults = await searchWebData(`escalas salariales obreros de la construcción argentina ${currentMonth} ${currentYear}`, 10, "construccion");
+          const result = await askQuestion(`Basado en estas fuentes, necesito datos de salarios devengados en  ${currentMonth} de ${currentYear} en materia salarial de obreros de la construccion de cada una de las fuentes. Si no hubo actualizaciones en ${currentMonth} ${currentYear}, devuelve un resultado de salarios vacio:\n\n${searchResults.map(r => `Contenido: ${r.content}`).join("\n\n")}.`, legalSystemRole(comercioGptResponseModel))
+          const data = processSalaryData(result.choices[0].message.content, fechaConsulta);
+          if (data.exito) {
+            logWithDetails.info("Hay actualizaciones de escala salarial de Obreros de la Construcción.")
+            const result = compareObjects(data.actualizaciones_salariales)
+            const save = saveConstruccion(result)
+          } else {
+            logWithDetails.info(`No hay actualizaciones de escala salarial de Obreros de la Construcción: ${data.error}`)
+          }
+        }
+      } catch (error) {
+        logWithDetails.error(`Error al actualizar base de datos Empleados de Construcción: ${error}`)
+      }
+
+    },
+    REGION_HOURS
+  );
+
+
+  cron.schedule(
+    cronSchedules.scrapingLaboralComercio,
+    async () => {
+      try {
+        const currentMonth = moment().format("MMMM");
+        const currentYear = moment().format("YYYY");
+        const fechaActual = moment();
+        const fechaConsulta = fechaActual.clone().startOf('month');
+        const findRecord = await findByDateComercio(fechaConsulta);
+
+        if (findRecord.exito) {
+          logWithDetails.info(`No hay actualizaciones para Empleados de Comercio.`)
+        } else {
+          logWithDetails.info("Actualizando base de datos Empleados de Comercio.")
+          const searchResults = await searchWebData(`escalas salariales empleados de comercio argentina ${currentMonth} ${currentYear}`, 10, "comercio");
+          const result = await askQuestion(`Basado en estas fuentes, necesito datos de salarios devengados en  ${currentMonth} de ${currentYear} en materia salarial de empleados de comercio de cada una de las fuentes. Si no hubo actualizaciones en ${currentMonth} ${currentYear}, devuelve un resultado de salarios vacio:\n\n${searchResults.map(r => `Contenido: ${r.content}`).join("\n\n")}.`, legalSystemRole(comercioGptResponseModel))
+          const data = processSalaryData(result.choices[0].message.content, fechaConsulta);
+          if (data.exito) {
+            logWithDetails.info("Hay actualizaciones de escala salarial de Empleados de Comercio.")
+            const result = compareObjects(data.actualizaciones_salariales)
+            const save = saveComercio(result)
+          } else {
+            logWithDetails.info(`No hay actualizaciones de escala salarial de Empleados de Comercio: ${data.error}`)
+          }
+        }
+      } catch (error) {
+        logWithDetails.error(`Error al actualizar base de datos Empleados de Comercio: ${error}`)
+      }
+    },
+    REGION_HOURS
+  );
+
 
   // Reporte diario de logs
   cron.schedule(
