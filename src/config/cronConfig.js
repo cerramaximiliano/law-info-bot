@@ -28,7 +28,7 @@ const cronSchedules = {
 
     scrapingLaboralComercio: "0 5 5-15 * *", //Se ejecta del 5 al 15 de cada mes
     scrapingLaboralConstruccion: "10 5 5-15 * *", // Se ejecuta del 5 al 15 de cada mes
-
+    scrapingLaboralGastronomia : "20 5 5-15 * *", // Se ejecuta del 5 al 15 de cada mes
 
     efemerides: [
         {

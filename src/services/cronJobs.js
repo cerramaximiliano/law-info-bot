@@ -97,30 +97,35 @@ registerEfemerides(cronSchedules.efemerides);
 const startCronJobs = async () => {
 
 
+  cron.schedule(
+    cronSchedules.scrapingLaboralGastronomia,
+    async () => {
+      const currentMonth = moment().format("MMMM");
+      const currentYear = moment().format("YYYY");
+      const month = obtenerNumeroMes(currentMonth);
+      const fechaActual = moment(`${currentYear}-${month}-01`, "YYYY-MM-DD");
+      const fechaConsulta = fechaActual.clone().startOf('month');
+      const findRecord = await findByDateGastronomia(fechaConsulta)
 
+      if (findRecord.exito) {
+        logWithDetails.info(`No hay actualizaciones para Empleados de Gastronomía y Hotelería.`)
+      } else {
+        logWithDetails.info(`Actualizando base de datos Empleados de Gastronomía y Hotelería`)
+        const searchResults = await searchWebData(`escalas salariales gastronomía argentina ${currentMonth} ${currentYear}`, 10, "hoteleria");
+        const result = await askQuestion(`Basado en estas fuentes, necesito datos de salarios devengados en  ${currentMonth} de ${currentYear} en materia salarial de hotelería y gastronomía de cada una de las fuentes. Si no hubo actualizaciones en ${currentMonth} ${currentYear}, devuelve un resultado de salarios vacio:\n\n${searchResults.map(r => `Contenido: ${r.content}`).join("\n\n")}.`, legalSystemRole(comercioGptResponseModel))
+        const data = processSalaryData(result.choices[0].message.content, fechaConsulta);
+        if (data.exito) {
+          logWithDetails.info("Hay actualizaciones de escala salarial de Hoteleros y Gastronómicos.")
+          const result = compareObjects(data.actualizaciones_salariales)
+          const save = saveGastronomia(result)
+        } else {
+          logWithDetails.info(`No hay actualizaciones de escala salarial de Hoteleros y Gastronómicos: ${data.error}`)
+        }
+      }
 
-  const currentMonth = moment().format("MMMM");
-  const currentYear = moment().format("YYYY");
-  const month = obtenerNumeroMes(currentMonth);
-  const fechaActual = moment(`${currentYear}-${month}-01`, "YYYY-MM-DD");
-  const fechaConsulta = fechaActual.clone().startOf('month');
-  const findRecord = await findByDateGastronomia(fechaConsulta)
-
-  if (findRecord.exito ){
-    logWithDetails.info(`No hay actualizaciones para Empleados de Gastronomía y Hotelería.`)
-  }else {
-    logWithDetails.info(`Actualizando base de datos Empleados de Gastronomía y Hotelería`)
-    const searchResults = await searchWebData(`escalas salariales gastronomía argentina ${currentMonth} ${currentYear}`, 10, "hoteleria");
-    const result = await askQuestion(`Basado en estas fuentes, necesito datos de salarios devengados en  ${currentMonth} de ${currentYear} en materia salarial de hotelería y gastronomía de cada una de las fuentes. Si no hubo actualizaciones en ${currentMonth} ${currentYear}, devuelve un resultado de salarios vacio:\n\n${searchResults.map(r => `Contenido: ${r.content}`).join("\n\n")}.`, legalSystemRole(comercioGptResponseModel))
-    const data = processSalaryData(result.choices[0].message.content, fechaConsulta);
-    if (data.exito) {
-      logWithDetails.info("Hay actualizaciones de escala salarial de Hoteleros y Gastronómicos.")
-      const result = compareObjects(data.actualizaciones_salariales)
-      const save = saveGastronomia(result)
-    }else {
-      logWithDetails.info(`No hay actualizaciones de escala salarial de Hoteleros y Gastronómicos: ${data.error}`)
-    }
-  }
+    },
+    REGION_HOURS
+  )
 
 
   cron.schedule(
