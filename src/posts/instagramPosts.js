@@ -992,7 +992,7 @@ const firstLaboralPost = (data, urlImage) => {
   `;
 };
 
-const secondLaboralTablePost = (table, urlImage) => {
+const secondLaboralTablePost = (table, urlImage, title = "Ley 26.844") => {
   return `
   <html lang="es">
   <head>
@@ -1150,7 +1150,7 @@ const secondLaboralTablePost = (table, urlImage) => {
     <div class="container" id="postContainer">
       <div class="header">
         <h1>Aumentos</h1>
-        <p class="subheader">Ley 26.844</p>
+        <p class="subheader">${title}</p>
         <div class="divider"></div>
       </div>
       <div class="content">

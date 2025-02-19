@@ -37,8 +37,8 @@ const {
   getIdArray,
   formatLogReportEmail,
 } = require("../utils/formatText");
-const { renderTables, example } = require("../utils/formatHTML");
-const { generateTelegramMessageDomesticos } = require("../utils/formatText");
+const { renderTables, renderTablesComercio, example } = require("../utils/formatHTML");
+const { generateTelegramMessageDomesticos, generateMessageTelegramLaboral } = require("../utils/formatText");
 const { obtenerNumeroMes } = require("../utils/formatDate");
 const { generateScreenshot } = require("../utils/generateImages");
 const {
@@ -52,10 +52,10 @@ const {
   uploadCarouselMedia,
   checkTokenExpiration,
 } = require("../controllers/igControllers");
-const { saveComercio, findByDateComercio } = require("../controllers/comercioControllers")
+const { saveComercio, findByDateComercio, updateComercioById } = require("../controllers/comercioControllers")
 const { saveConstruccion,
-  findByDateConstruccion } = require("../controllers/construccionControllers");
-const { saveGastronomia, findByDateGastronomia } = require("../controllers/gastronomiaControllers");
+  findByDateConstruccion, updateConstruccionById } = require("../controllers/construccionControllers");
+const { saveGastronomia, findByDateGastronomia, updateGrastronomiaById } = require("../controllers/gastronomiaControllers");
 const {
   uploadImage,
   deleteImage,
@@ -96,7 +96,274 @@ registerEfemerides(cronSchedules.efemerides);
 
 const startCronJobs = async () => {
 
+  const fechaConsulta = moment();
+  const findLastDocument = await findByDateGastronomia(fechaConsulta, "month");
+  if (findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length > 0) {
+    let message = generateMessageTelegramLaboral(findLastDocument.datos[0]);
+    if(message.exito){
+      console.log(message.mensaje)
+      const messageId = await notifyUnnotifiedLaboral(message.mensaje);
+      console.log(messageId)
+      if(messageId){
+        logWithDetails.info(`Mensaje de Telegram enviado de forma exitosa. CCT Hoteleros y Gastronómicos.`)
+      }
 
+    }
+  }
+
+
+  // Notify Post IG LABORAL GASTRONOMÍA
+  cron.schedule(
+    cronSchedules.notifyLaboralGastronomia,
+    async () => {
+      try {
+        const fechaConsulta = moment();
+        const findLastDocument = await findByDateGastronomia(fechaConsulta, "month");
+
+        if ( findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length && findLastDocument.datos[0].notifiedByTelegram ){
+          let message = generateMessageTelegramLaboral(findLastDocument.datos[0]);
+          if(message.exito){
+            console.log(message.mensaje)
+            const messageId = await notifyUnnotifiedLaboral(message.mensaje);
+            console.log(messageId)
+            if(messageId){
+              logWithDetails.info(`Mensaje de Telegram enviado de forma exitosa. CCT Hoteleros y Gastronómicos.`)
+              const update = await updateGrastronomiaById(findLastDocument.datos[0]._id, { notifiedByTelegram: true })
+            }            
+          }
+        }
+
+
+        if (findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length > 0 && findLastDocument.datos[0].postIG === false) {
+          logWithDetails.info(`Se encontraron datos para notificar post IG escalas Gastronomía`);
+
+
+
+          let imageIds = [];
+          let imageUrls = [];
+
+          generatedFile = await generateScreenshot(
+            firstLaboralPost(
+              {
+                subtitle: "CCT 389/04",
+                title: "Gastronomía y Hotelería",
+              },
+              "https://res.cloudinary.com/dqyoeolib/image/upload/v1739804048/qbo7ezp4qmg1yllorxsi.jpg"
+            )
+          );
+          const image = await uploadImage(`./src/files/${generatedFile}`);
+          if (image && image.secure_url) {
+            imageUrls.push(image.secure_url);
+            imageIds.push(image.public_id);
+          }
+          const tables = renderTablesComercio(findLastDocument.datos[0].detalles, findLastDocument.datos[0].fecha, 5);
+          if (tables.length > 0) {
+            for (let index = 0; index < tables.length; index++) {
+              try {
+                const htmlCode = secondLaboralTablePost(
+                  tables[index],
+                  "https://res.cloudinary.com/dqyoeolib/image/upload/v1739804048/qbo7ezp4qmg1yllorxsi.jpg",
+                  "CCT 76/75"
+                );
+                generatedFile = await generateScreenshot(htmlCode);
+                const image = await uploadImage(`./src/files/${generatedFile}`);
+                if (image && image.secure_url) {
+                  imageUrls.push(image.secure_url);
+                  imageIds.push(image.public_id);
+                }
+              } catch (error) {
+                logWithDetails.error(
+                  `Error generando o subiendo imagen de la tabla: ${error.message}`
+                );
+              }
+            }
+          }
+
+          if (imageUrls.length > 1) {
+            try {
+              const caption =
+                "Actualización escalas CCT 389/04 Trabajadores Gastronómicos y Hoteleros\n #obrerosgastronomia #obreroshoteleria #CCT389/04 #aumentos #laboral #remuneraciones #actualizlaciones\n\n";
+              const postIG = await uploadCarouselMedia(imageUrls, caption);
+              await deleteImage(imageIds);
+
+              if (postIG.exito) {
+                logWithDetails.info(`Actualizando el documento de escalas Gastronomía postIG a true`)
+                const update = await updateGrastronomiaById(findLastDocument.datos[0]._id, { postIG: true })
+              }
+            } catch (error) {
+              logWithDetails.error(
+                `Error al subir carrusel o actualizar notificaciones: ${error.message}`
+              );
+            }
+          }
+
+
+        } else {
+          logWithDetails.info(`No se encuentraron datos para notificar post IG escalas Gastronomía`)
+        }
+
+      } catch (error) {
+        logWithDetails.info(`Error en la tarea de posteo de Empleados de Gastronomía: ${error}`)
+      }
+    },
+    REGION_HOURS
+  )
+
+  // Notify Post IG LABORAL CONSTRUCCIÓN
+  cron.schedule(
+    cronSchedules.notifyLaboralConstruccion,
+    async () => {
+      try {
+        const fechaConsulta = moment();
+        const findLastDocument = await findByDateConstruccion(fechaConsulta, "month");
+
+        if (findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length > 0 && findLastDocument.datos[0].postIG === false) {
+          logWithDetails.info(`Se encontraron datos para notificar post IG escalas Construcción`);
+
+          let imageIds = [];
+          let imageUrls = [];
+
+          generatedFile = await generateScreenshot(
+            firstLaboralPost(
+              {
+                subtitle: "CCT 76/75",
+                title: "Obreros de la Construcción",
+              },
+              "https://res.cloudinary.com/dqyoeolib/image/upload/v1739804740/epvqntlm1aoy9nsffmge.jpg"
+            )
+          );
+          const image = await uploadImage(`./src/files/${generatedFile}`);
+          if (image && image.secure_url) {
+            imageUrls.push(image.secure_url);
+            imageIds.push(image.public_id);
+          }
+
+          const tables = renderTablesComercio(findLastDocument.datos[0].detalles, findLastDocument.datos[0].fecha, 5);
+          if (tables.length > 0) {
+            for (let index = 0; index < tables.length; index++) {
+              try {
+                const htmlCode = secondLaboralTablePost(
+                  tables[index],
+                  "https://res.cloudinary.com/dqyoeolib/image/upload/v1739804740/epvqntlm1aoy9nsffmge.jpg",
+                  "CCT 76/75"
+                );
+                generatedFile = await generateScreenshot(htmlCode);
+                const image = await uploadImage(`./src/files/${generatedFile}`);
+                if (image && image.secure_url) {
+                  imageUrls.push(image.secure_url);
+                  imageIds.push(image.public_id);
+                }
+              } catch (error) {
+                logWithDetails.error(
+                  `Error generando o subiendo imagen de la tabla: ${error.message}`
+                );
+              }
+            }
+          }
+
+          if (imageUrls.length > 1) {
+            try {
+              const caption =
+                "Actualización escalas CCT 76/75 Obreros de la Construcción\n #obrerosconstruccion #CCT76/75 #aumentos #laboral #remuneraciones #actualizlaciones\n\n";
+              const postIG = await uploadCarouselMedia(imageUrls, caption);
+              await deleteImage(imageIds);
+
+              if (postIG.exito) {
+                logWithDetails.info(`Actualizando el documento de escalas Construcción postIG a true`)
+                const update = await updateConstruccionById(findLastDocument.datos[0]._id, { postIG: true })
+                console.log(update)
+              }
+            } catch (error) {
+              logWithDetails.error(
+                `Error al subir carrusel o actualizar notificaciones: ${error.message}`
+              );
+            }
+          }
+        } else {
+          logWithDetails.info(`No se encontraron datos para notificar post IG escalas Construcción`)
+        }
+      } catch (error) {
+        logWithDetails.info(`Error en la tarea de posteo de Empleados de la Construcción: ${error}`)
+      }
+    },
+    REGION_HOURS
+  );
+  // Notify Post IG LABORAL COMERCIO
+  cron.schedule(
+    cronSchedules.notifyLaboralComercio,
+    async () => {
+      try {
+        const fechaConsulta = moment();
+        const findLastDocument = await findByDateComercio(fechaConsulta, "month");
+        if (findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length > 0 && findLastDocument.datos[0].postIG === false) {
+          logWithDetails.info(`Se encontraron datos para notificar post IG escalas Comercio`);
+
+          let imageIds = [];
+          let imageUrls = [];
+
+          generatedFile = await generateScreenshot(
+            firstLaboralPost(
+              {
+                subtitle: "CCT 130/75",
+                title: "Empleados de Comercio",
+              },
+              "https://res.cloudinary.com/dqyoeolib/image/upload/v1739805013/hrobaxmqmomqd52skg5e.jpg"
+            ))
+          const image = await uploadImage(`./src/files/${generatedFile}`);
+          if (image && image.secure_url) {
+            imageUrls.push(image.secure_url);
+            imageIds.push(image.public_id);
+          }
+
+          const tables = renderTablesComercio(findLastDocument.datos[0].detalles, findLastDocument.datos[0].fecha, 5);
+          if (tables.length > 0) {
+            for (let index = 0; index < tables.length; index++) {
+              try {
+                const htmlCode = secondLaboralTablePost(
+                  tables[index],
+                  "https://res.cloudinary.com/dqyoeolib/image/upload/v1739805013/hrobaxmqmomqd52skg5e.jpg",
+                  "CCT 130/75"
+                );
+                generatedFile = await generateScreenshot(htmlCode);
+                const image = await uploadImage(`./src/files/${generatedFile}`);
+                if (image && image.secure_url) {
+                  imageUrls.push(image.secure_url);
+                  imageIds.push(image.public_id);
+                }
+              } catch (error) {
+                logWithDetails.error(
+                  `Error generando o subiendo imagen de la tabla: ${error.message}`
+                );
+              }
+            }
+          }
+
+          if (imageUrls.length > 1) {
+            try {
+              const caption =
+                "Actualización escalas CCT 130/75 Empleados de Comercio\n #empleadoscomercio #CCT130/75 #aumentos #laboral #remuneraciones #actualizlaciones\n\n";
+              const postIG = await uploadCarouselMedia(imageUrls, caption);
+              await deleteImage(imageIds);
+              if (postIG.exito) {
+                logWithDetails.info(`Actualizando el documento de escalas Comercio postIG a true`)
+                const update = await updateComercioById(findLastDocument.datos[0]._id, { postIG: true })
+              }
+            } catch (error) {
+              logWithDetails.error(
+                `Error al subir carrusel o actualizar notificaciones: ${error.message}`
+              );
+            }
+          }
+        } else {
+          logWithDetails.info(`No se encontraron datos para notificar post IG escalas Comercio`)
+        }
+      } catch (error) {
+        logWithDetails.info(`Error en la tarea de notificaciones de Empleados de Comercio: ${error}`)
+      }
+    },
+    REGION_HOURS
+  );
+  // Scraping y GEN AI Convenio Gastronomía
   cron.schedule(
     cronSchedules.scrapingLaboralGastronomia,
     async () => {
@@ -126,8 +393,7 @@ const startCronJobs = async () => {
     },
     REGION_HOURS
   )
-
-
+  // Scraping y GEN AI Convenio Construcción
   cron.schedule(
     cronSchedules.scrapingLaboralConstruccion,
     async () => {
@@ -161,8 +427,7 @@ const startCronJobs = async () => {
     },
     REGION_HOURS
   );
-
-
+  // Scraping y GEN AI Convenio Comercio
   cron.schedule(
     cronSchedules.scrapingLaboralComercio,
     async () => {
@@ -239,7 +504,6 @@ const startCronJobs = async () => {
           );
 
           for (let index = 0; index < found.length; index++) {
-            console.log(found[index]._id);
             const message = generateTelegramMessageDomesticos(found[index]);
             const messageId = await notifyUnnotifiedLaboral(message);
             if (messageId) {

@@ -71,8 +71,8 @@ const uploadCarouselMedia = async (imageUrls, caption) => {
       const responseMedia = await axios.post(
         `https://graph.facebook.com/v17.0/${instagramAccountId}/media`,
         {
-          image_url: imageUrl, // URL de la imagen
-          is_carousel_item: true, // Marcar como parte del carrusel
+          image_url: imageUrl,
+          is_carousel_item: true,
         },
         {
           headers: {
@@ -94,8 +94,8 @@ const uploadCarouselMedia = async (imageUrls, caption) => {
       `https://graph.facebook.com/v17.0/${instagramAccountId}/media`,
       {
         media_type: "CAROUSEL",
-        children: mediaIds, // IDs de los medios creados
-        caption: caption, // Descripción que acompañará a la publicación del carrusel
+        children: mediaIds,
+        caption: caption,
       },
       {
         headers: {
@@ -114,7 +114,7 @@ const uploadCarouselMedia = async (imageUrls, caption) => {
     const responsePublish = await axios.post(
       `https://graph.facebook.com/v17.0/${instagramAccountId}/media_publish`,
       {
-        creation_id: carouselId, // El ID del carrusel creado en el paso anterior
+        creation_id: carouselId,
       },
       {
         headers: {
@@ -127,11 +127,31 @@ const uploadCarouselMedia = async (imageUrls, caption) => {
     );
 
     logWithDetails.info("Publicación de carrusel exitosa:", responsePublish.data);
+
+    return {
+      exito: true,
+      mensaje: "Carrusel publicado exitosamente",
+      datos: {
+        mediaIds,
+        carouselId,
+        postId: responsePublish.data.id
+      }
+    };
+
   } catch (error) {
     logWithDetails.error(
       "Error al subir el carrusel:",
       error.response ? error.response.data : error.message
     );
+
+    return {
+      exito: false,
+      mensaje: "Error al publicar el carrusel",
+      error: error.response ? error.response.data : error.message,
+      fase: error.response?.config?.url?.includes('media_publish') ? 'publicación' :
+            error.response?.config?.url?.includes('media') && error.response?.config?.data?.media_type === 'CAROUSEL' ? 'creación de carrusel' :
+            'creación de medios'
+    };
   }
 };
 

@@ -15,6 +15,10 @@ const cronSchedules = {
 
     scrapingLaboral: "20 8 * * 1-5",
     notifyLaboralDomestico: "0 10 * * 1-5 ",
+
+    notifyLaboralComercio: "0 10 5-17 * 1,2",
+    notifyLaboralConstruccion: "7 10 5-17 * 2,3",
+    notifyLaboralGastronomia: "9 10 5-17 * 3,4",
     notifyLaboralDomesticoTelegram: "20 13 * * 1-5",
 
     notifyPrev: "10 10 * * 1-5",

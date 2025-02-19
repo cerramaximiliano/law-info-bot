@@ -74,6 +74,79 @@ function renderTables(data) {
   });
 
   return result;
+};
+
+function renderTablesComercio(data, fecha, rowsPerTable = 10) {
+  let result = [];
+  let currentTable = "";
+  let currentRowCount = 0;
+  
+  // Función para formatear la fecha
+  function formatDate(isoString) {
+    const date = new Date(isoString);
+    const formatter = new Intl.DateTimeFormat('es-ES', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC'  // Forzar UTC para evitar ajustes por zona horaria
+    });
+    let formatted = formatter.format(date);
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }
+  
+  function startNewTable() {
+    return `
+      <div>
+        <p class="tableTitle">${formatDate(fecha)}</p>
+        <table class="tableStyle">
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th>Nivel</th>
+              <th>Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+  }
+  
+  function closeTable() {
+    return `
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+  
+  currentTable = startNewTable();
+  
+  data.forEach(categoria => {
+    categoria.subcategorías.forEach(subcategoria => {
+      if (currentRowCount >= rowsPerTable) {
+        currentTable += closeTable();
+        result.push(currentTable);
+        currentTable = startNewTable();
+        currentRowCount = 0;
+      }
+      
+      const row = `
+        <tr>
+          <td>${categoria.categoría}</td>
+          <td>${subcategoria.nivel}</td>
+          <td>$ ${subcategoria.importe.toLocaleString('es-AR')}</td>
+        </tr>
+      `;
+      
+      currentTable += row;
+      currentRowCount++;
+    });
+  });
+  
+  if (currentRowCount > 0) {
+    currentTable += closeTable();
+    result.push(currentTable);
+  }
+  
+  return result;
 }
 const example = [
   {
@@ -248,9 +321,10 @@ const example = [
     notifiedByWhatsApp: true,
     postIG: true
   }
-]
+];
 
 module.exports = {
   renderTables,
-  example
+  renderTablesComercio,
+  example,
 };

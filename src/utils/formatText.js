@@ -110,8 +110,7 @@ function formatLogReportEmail(report) {
   const criticalFilesText = report.criticalFiles
     .map(
       (file) =>
-        `- ${file.file}: ${file.errors} errores, ${
-          file.warnings
+        `- ${file.file}: ${file.errors} errores, ${file.warnings
         } advertencias en líneas: ${file.lines.join(", ")}\n`
     )
     .join("\n");
@@ -149,6 +148,106 @@ ${errorDetailsText}
 `;
 }
 
+function generateMessageTelegramLaboral(documento) {
+  try {
+    if (!documento || !documento.detalles || !documento.fecha) {
+      throw new Error('Documento inválido o incompleto');
+    }
+
+    // Formatear la fecha
+    const fecha = new Date(documento.fecha);
+    const formatter = new Intl.DateTimeFormat('es-ES', {
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC'
+    });
+    const fechaFormateada = formatter.format(fecha);
+    const fechaCapitalizada = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+
+    // Determinar el tipo de convenio basado en la estructura de los datos
+    let tipoConvenio = '';
+    const primerCategoria = documento.detalles[0].categoría;
+    if (['Maestranza', 'Administrativos', 'Cajeros'].some(cat => documento.detalles.some(d => d.categoría === cat))) {
+      tipoConvenio = 'Comercio';
+    } else if (['Oficial Especializado', 'Oficial', 'Medio Oficial'].some(cat => documento.detalles.some(d => d.categoría === cat))) {
+      tipoConvenio = 'Construcción';
+    } else if (['A', 'B', 'C', 'D', 'Especial'].some(cat => documento.detalles.some(d => d.categoría === cat))) {
+      tipoConvenio = 'Gastronomía';
+    }
+
+    // Ordenar las categorías según el primer importe de cada subcategoría (orden ascendente)
+    const detallesOrdenados = [...documento.detalles].sort((a, b) => {
+      const primerImporteA = a.subcategorías[0]?.importe || 0;
+      const primerImporteB = b.subcategorías[0]?.importe || 0;
+      return primerImporteA - primerImporteB; // Cambiado a orden ascendente
+    });
+
+    // Construir el mensaje con el título correspondiente
+    let mensaje = '';
+    switch (tipoConvenio) {
+      case 'Comercio':
+        mensaje = `🏢 *Escala Salarial Empleados de Comercio*\n`;
+        break;
+      case 'Construcción':
+        mensaje = `🏗️ *Escala Salarial UOCRA*\n`;
+        break;
+      case 'Gastronomía':
+        mensaje = `🍽️ *Escala Salarial Gastronómicos*\n`;
+        break;
+      default:
+        mensaje = `📊 *Nueva Escala Salarial*\n`;
+    }
+
+    mensaje += `📅 *${fechaCapitalizada}*\n\n`;
+
+    // Agregar el acuerdo si existe
+    if (documento.acuerdo) {
+      mensaje += `📋 ${documento.acuerdo}\n\n`;
+    }
+
+    // Agregar los detalles de cada categoría (ahora ordenados ascendentemente)
+    detallesOrdenados.forEach(categoria => {
+      mensaje += `*${categoria.categoría}*\n`;
+
+      categoria.subcategorías.forEach(sub => {
+        const importeFormateado = sub.importe.toLocaleString('es-AR');
+
+        // Formato específico según el tipo de convenio
+        if (tipoConvenio === 'Construcción') {
+          mensaje += `• ${sub.nivel}: $${importeFormateado} por hora\n`;
+        } else {
+          mensaje += `• ${tipoConvenio === 'Gastronomía' ? 'Nivel' : ''} ${sub.nivel}: $${importeFormateado}\n`;
+        }
+      });
+
+      mensaje += '\n';
+    });
+
+    // Agregar resumen si existe
+    if (documento.resumen) {
+      mensaje += `📌 ${documento.resumen}\n\n`;
+    }
+
+    // Agregar fuente si existe
+    if (documento.fuente) {
+      mensaje += `📰 Fuente: ${documento.fuente}`;
+    }
+
+    return {
+      exito: true,
+      mensaje,
+    };
+
+  } catch (error) {
+    return {
+      exito: false,
+      mensaje: 'Error al generar el mensaje',
+      error: error.message
+    };
+  }
+}
+
+
 module.exports = {
   truncateText,
   formatPrice,
@@ -157,5 +256,6 @@ module.exports = {
   getIdArray,
   parseDateAndMonto,
   generateTelegramMessageDomesticos,
+  generateMessageTelegramLaboral,
   formatLogReportEmail,
 };
