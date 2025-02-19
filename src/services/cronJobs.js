@@ -96,21 +96,6 @@ registerEfemerides(cronSchedules.efemerides);
 
 const startCronJobs = async () => {
 
-  const fechaConsulta = moment();
-  const findLastDocument = await findByDateGastronomia(fechaConsulta, "month");
-  if (findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length > 0) {
-    let message = generateMessageTelegramLaboral(findLastDocument.datos[0]);
-    if(message.exito){
-      console.log(message.mensaje)
-      const messageId = await notifyUnnotifiedLaboral(message.mensaje);
-      console.log(messageId)
-      if(messageId){
-        logWithDetails.info(`Mensaje de Telegram enviado de forma exitosa. CCT Hoteleros y Gastronómicos.`)
-      }
-
-    }
-  }
-
 
   // Notify Post IG LABORAL GASTRONOMÍA
   cron.schedule(
@@ -120,10 +105,9 @@ const startCronJobs = async () => {
         const fechaConsulta = moment();
         const findLastDocument = await findByDateGastronomia(fechaConsulta, "month");
 
-        if ( findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length && findLastDocument.datos[0].notifiedByTelegram ){
+        if ( findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length && findLastDocument.datos[0].notifiedByTelegram  === false ){
           let message = generateMessageTelegramLaboral(findLastDocument.datos[0]);
           if(message.exito){
-            console.log(message.mensaje)
             const messageId = await notifyUnnotifiedLaboral(message.mensaje);
             console.log(messageId)
             if(messageId){
@@ -217,6 +201,18 @@ const startCronJobs = async () => {
         const fechaConsulta = moment();
         const findLastDocument = await findByDateConstruccion(fechaConsulta, "month");
 
+        if ( findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length && findLastDocument.datos[0].notifiedByTelegram  === false ){
+          let message = generateMessageTelegramLaboral(findLastDocument.datos[0]);
+          if(message.exito){
+            const messageId = await notifyUnnotifiedLaboral(message.mensaje);
+            console.log(messageId)
+            if(messageId){
+              logWithDetails.info(`Mensaje de Telegram enviado de forma exitosa. CCT Hoteleros y Gastronómicos.`)
+              const update = await updateConstruccionById(findLastDocument.datos[0]._id, { notifiedByTelegram: true })
+            }            
+          }
+        }
+
         if (findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length > 0 && findLastDocument.datos[0].postIG === false) {
           logWithDetails.info(`Se encontraron datos para notificar post IG escalas Construcción`);
 
@@ -271,7 +267,6 @@ const startCronJobs = async () => {
               if (postIG.exito) {
                 logWithDetails.info(`Actualizando el documento de escalas Construcción postIG a true`)
                 const update = await updateConstruccionById(findLastDocument.datos[0]._id, { postIG: true })
-                console.log(update)
               }
             } catch (error) {
               logWithDetails.error(
@@ -295,6 +290,19 @@ const startCronJobs = async () => {
       try {
         const fechaConsulta = moment();
         const findLastDocument = await findByDateComercio(fechaConsulta, "month");
+
+        if ( findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length && findLastDocument.datos[0].notifiedByTelegram  === false ){
+          let message = generateMessageTelegramLaboral(findLastDocument.datos[0]);
+          if(message.exito){
+            const messageId = await notifyUnnotifiedLaboral(message.mensaje);
+            console.log(messageId)
+            if(messageId){
+              logWithDetails.info(`Mensaje de Telegram enviado de forma exitosa. CCT Hoteleros y Gastronómicos.`)
+              const update = await updateComercioById(findLastDocument.datos[0]._id, { notifiedByTelegram: true })
+            }            
+          }
+        }
+
         if (findLastDocument.exito && findLastDocument.datos && findLastDocument.datos.length > 0 && findLastDocument.datos[0].postIG === false) {
           logWithDetails.info(`Se encontraron datos para notificar post IG escalas Comercio`);
 
